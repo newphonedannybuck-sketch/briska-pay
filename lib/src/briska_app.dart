@@ -41,6 +41,7 @@ import '../features/export/models/export_config.dart';
 import '../features/export/services/export_filename_service.dart';
 
 part 'screens/about_screen.dart';
+part 'screens/legal_text_screen.dart';
 
 String get _currencyPrefix => '${CurrencyFormatter.current.symbol}  ';
 String _money(double value, [CurrencyConfig? currency]) =>
@@ -1472,39 +1473,6 @@ class _AppLockScreenState extends State<AppLockScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class LegalTextScreen extends StatelessWidget {
-  const LegalTextScreen({
-    required this.title,
-    required this.assetPath,
-    super.key,
-  });
-
-  final String title;
-  final String assetPath;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: AppPage(
-        child: FutureBuilder<String>(
-          future: rootBundle.loadString(assetPath),
-          builder: (context, snapshot) {
-            final text = snapshot.data ?? 'Loading...';
-            return SelectableText(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                height: 1.55,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            );
-          },
         ),
       ),
     );
