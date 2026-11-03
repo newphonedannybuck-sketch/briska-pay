@@ -46,6 +46,7 @@ part 'screens/support_screen.dart';
 part 'screens/beta_checklist_screen.dart';
 part 'screens/startup_recovery_screen.dart';
 part 'screens/startup_initialization_screen.dart';
+part 'screens/app_lock_initialization_error_screen.dart';
 
 String get _currencyPrefix => '${CurrencyFormatter.current.symbol}  ';
 String _money(double value, [CurrencyConfig? currency]) =>
@@ -1090,63 +1091,6 @@ class _BriskaPageRoute<T> extends PageRouteBuilder<T> {
           );
         },
       );
-}
-
-class AppLockInitializationErrorScreen extends StatelessWidget {
-  const AppLockInitializationErrorScreen({required this.onRetry, super.key});
-
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: (constraints.maxHeight - 48)
-                    .clamp(0, double.infinity)
-                    .toDouble(),
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const BriskaLogo(size: 72),
-                      const SizedBox(height: 18),
-                      Text(
-                        'Briska Pay could not verify app security',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Your information remains protected. Try again to continue.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      BriskaPrimaryButton(
-                        icon: Icons.refresh_rounded,
-                        label: 'Try again',
-                        onPressed: onRetry,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _PreviewLine extends StatelessWidget {
