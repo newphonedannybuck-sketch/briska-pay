@@ -28,6 +28,9 @@ class ExportTotals {
     required this.unpaidBankHolidayDays,
     required this.hoursWorked,
     required this.averageHours,
+    this.holidayHours = 0,
+    this.bankHolidayHours = 0,
+    this.totalRecordedHours = 0,
     required this.primaryPay,
     required this.secondaryPay,
     required this.allowances,
@@ -47,6 +50,9 @@ class ExportTotals {
   final int unpaidBankHolidayDays;
   final double hoursWorked;
   final double averageHours;
+  final double holidayHours;
+  final double bankHolidayHours;
+  final double totalRecordedHours;
   final double primaryPay;
   final double secondaryPay;
   double get homePay => primaryPay;
@@ -201,6 +207,19 @@ abstract final class PdfExportService {
               totals.unpaidBankHolidayDays.toString(),
             ),
             _totalItem('Hours Worked', formatHoursLabel(totals.hoursWorked)),
+            _totalItem(
+              'Average Hours Worked',
+              formatHoursLabel(totals.averageHours),
+            ),
+            _totalItem('Holiday Hours', formatHoursLabel(totals.holidayHours)),
+            _totalItem(
+              'Bank Holiday Hours',
+              formatHoursLabel(totals.bankHolidayHours),
+            ),
+            _totalItem(
+              'Total Recorded Hours',
+              formatHoursLabel(totals.totalRecordedHours),
+            ),
             _totalItem('$primaryRateLabel Pay', _money(totals.primaryPay)),
             _totalItem('$secondaryRateLabel Pay', _money(totals.secondaryPay)),
             _totalItem('Allowances', _money(totals.allowances)),
@@ -290,8 +309,20 @@ abstract final class PdfExportService {
                   formatHoursLabel(totals.hoursWorked),
                 ),
                 _summaryMetric(
-                  'Average Hours',
+                  'Average Hours Worked',
                   formatHoursLabel(totals.averageHours),
+                ),
+                _summaryMetric(
+                  'Holiday Hours',
+                  formatHoursLabel(totals.holidayHours),
+                ),
+                _summaryMetric(
+                  'Bank Holiday Hours',
+                  formatHoursLabel(totals.bankHolidayHours),
+                ),
+                _summaryMetric(
+                  'Total Recorded Hours',
+                  formatHoursLabel(totals.totalRecordedHours),
                 ),
                 _summaryMetric(
                   '$primaryRateLabel Pay',
@@ -346,7 +377,7 @@ abstract final class PdfExportService {
   static ExportTotals calculateTotals(List<WorkEntry> entries) {
     final workEntries = entries.where((entry) => entry.entryType == 'WorkDay');
     final workDays = workEntries.length;
-    final hoursWorked = entries.fold(
+    final hoursWorked = workEntries.fold(
       0.0,
       (sum, entry) => sum + entry.totalHours,
     );
@@ -387,6 +418,16 @@ abstract final class PdfExportService {
                 entry.type == EntryType.bankHoliday && !entry.isPaidBankHoliday,
           )
           .length,
+      holidayHours: entries
+          .where((entry) => entry.entryType == 'Holiday')
+          .fold(0.0, (sum, entry) => sum + entry.totalHours),
+      bankHolidayHours: entries
+          .where((entry) => entry.type == EntryType.bankHoliday)
+          .fold(0.0, (sum, entry) => sum + entry.totalHours),
+      totalRecordedHours: entries.fold(
+        0.0,
+        (sum, entry) => sum + entry.totalHours,
+      ),
       hoursWorked: hoursWorked,
       averageHours: workDays == 0 ? 0 : hoursWorked / workDays,
       primaryPay: primaryPay,
@@ -629,7 +670,7 @@ abstract final class PdfExportService {
   }) {
     return pw.Container(
       width: wide ? double.infinity : 160,
-      padding: const pw.EdgeInsets.all(14),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: pw.BoxDecoration(
         color: label == 'Pay period' ? _softGreen : _rowGrey,
         borderRadius: pw.BorderRadius.circular(10),
