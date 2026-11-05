@@ -1581,7 +1581,8 @@ void main() {
             onCreateBackup: () async {},
             onRestoreBackup: () async {},
             onLockConfigChanged: (_) async {},
-            onSetLockPin: (_) async {},
+            onSetLockPin: (_, currentPin) async {},
+            onDisableLock: (_) async {},
             onShowAbout: () {},
             onPreferencesChanged: (settings) => latest = settings,
             onThemeModeChanged: (_) {},
@@ -1626,7 +1627,8 @@ void main() {
             onCreateBackup: () async {},
             onRestoreBackup: () async {},
             onLockConfigChanged: (_) async {},
-            onSetLockPin: (_) async {},
+            onSetLockPin: (_, currentPin) async {},
+            onDisableLock: (_) async {},
             onShowAbout: () {},
             onPreferencesChanged: (settings) => latest = settings,
             onThemeModeChanged: (_) {},
@@ -1675,7 +1677,8 @@ void main() {
             onCreateBackup: () async {},
             onRestoreBackup: () async {},
             onLockConfigChanged: (_) async {},
-            onSetLockPin: (_) async {},
+            onSetLockPin: (_, currentPin) async {},
+            onDisableLock: (_) async {},
             onShowAbout: () {},
             onPreferencesChanged: (settings) => latest = settings,
             onThemeModeChanged: (_) {},
@@ -1705,6 +1708,11 @@ void main() {
   testWidgets('Settings confirms app-lock and PIN actions', (tester) async {
     AppLockConfig? changedLock;
     String? savedPin;
+    String? replacementCurrentPin;
+    String? disableCurrentPin;
+    var configChanges = 0;
+    var pinSaves = 0;
+    var disableCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -1713,8 +1721,21 @@ void main() {
             lockConfig: const AppLockConfig(enabled: true, hasPin: true),
             onCreateBackup: () async {},
             onRestoreBackup: () async {},
-            onLockConfigChanged: (config) async => changedLock = config,
-            onSetLockPin: (pin) async => savedPin = pin,
+            onLockConfigChanged: (config) async {
+              configChanges++;
+              changedLock = config;
+            },
+            onSetLockPin: (pin, currentPin) async {
+              pinSaves++;
+              replacementCurrentPin = currentPin;
+              savedPin = pin;
+            },
+            onDisableLock: (pin) async {
+              disableCalls++;
+              disableCurrentPin = pin;
+              if (pin != savedPin) throw const PinVerificationException();
+              changedLock = const AppLockConfig(enabled: false);
+            },
             onShowAbout: () {},
             onPreferencesChanged: (_) {},
             onThemeModeChanged: (_) {},
@@ -1727,9 +1748,28 @@ void main() {
     await tester.tap(find.text('Set PIN fallback'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'PIN'), '4321');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Current PIN'),
+      '1234',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Confirm PIN'),
+      '9999',
+    );
+    await tester.tap(find.text('Save PIN'));
+    await tester.pump();
+    expect(find.text('PINs do not match.'), findsOneWidget);
+    expect(pinSaves, 0);
+    expect(savedPin, isNull);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Confirm PIN'),
+      '4321',
+    );
     await tester.tap(find.text('Save PIN'));
     await tester.pump();
     expect(savedPin, '4321');
+    expect(replacementCurrentPin, '1234');
+    expect(pinSaves, 1);
     expect(find.text('PIN updated.'), findsOneWidget);
 
     final lockTile = find.widgetWithText(SwitchListTile, 'App lock');
@@ -1740,7 +1780,28 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Current PIN'),
+      '0000',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Disable App Lock'));
+    await tester.pumpAndSettle();
+    expect(disableCurrentPin, '0000');
+    expect(disableCalls, 1);
+    expect(configChanges, 0);
+    expect(changedLock, isNull);
+    expect(find.text('Current PIN did not match.'), findsOneWidget);
+    expect(find.text('App lock disabled.'), findsNothing);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Current PIN'),
+      '4321',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Disable App Lock'));
+    await tester.pumpAndSettle();
     expect(changedLock?.enabled, isFalse);
+    expect(disableCurrentPin, '4321');
+    expect(disableCalls, 2);
+    expect(configChanges, 0);
     expect(find.text('App lock disabled.'), findsOneWidget);
   });
 
@@ -1758,7 +1819,8 @@ void main() {
           onCreateBackup: () async {},
           onRestoreBackup: () async {},
           onLockConfigChanged: (_) async {},
-          onSetLockPin: (_) async {},
+          onSetLockPin: (_, currentPin) async {},
+          onDisableLock: (_) async {},
           onShowAbout: () {},
           onPreferencesChanged: (_) {},
           onThemeModeChanged: (_) {},
@@ -1782,7 +1844,8 @@ void main() {
           onCreateBackup: () async {},
           onRestoreBackup: () async {},
           onLockConfigChanged: (_) async {},
-          onSetLockPin: (_) async {},
+          onSetLockPin: (_, currentPin) async {},
+          onDisableLock: (_) async {},
           onShowAbout: () {},
           onPreferencesChanged: (_) {},
           onThemeModeChanged: (_) {},
@@ -1807,7 +1870,8 @@ void main() {
           onCreateBackup: () async {},
           onRestoreBackup: () async {},
           onLockConfigChanged: (_) async {},
-          onSetLockPin: (_) async {},
+          onSetLockPin: (_, currentPin) async {},
+          onDisableLock: (_) async {},
           onShowAbout: () {},
           onPreferencesChanged: (_) {},
           onThemeModeChanged: (_) {},
@@ -1841,7 +1905,8 @@ void main() {
           onCreateBackup: () async {},
           onRestoreBackup: () async {},
           onLockConfigChanged: (_) async {},
-          onSetLockPin: (_) async {},
+          onSetLockPin: (_, currentPin) async {},
+          onDisableLock: (_) async {},
           onShowAbout: () {},
           onPreferencesChanged: (settings) => latest = settings,
           onThemeModeChanged: (_) {},

@@ -11,6 +11,7 @@ class BriskaShell extends StatefulWidget {
     this.initialExports = const [],
     this.useLocalStorage = true,
     this.appLockConfigLoader,
+    this.lockClock,
     this.pinVerifier,
     this.biometricAuthenticator,
     this.deviceAuthenticationAvailabilityChecker,
@@ -26,6 +27,7 @@ class BriskaShell extends StatefulWidget {
   final List<ExportedFileRecord> initialExports;
   final bool useLocalStorage;
   final Future<AppLockConfig> Function()? appLockConfigLoader;
+  final DateTime Function()? lockClock;
   final Future<bool> Function(String pin)? pinVerifier;
   final Future<bool> Function()? biometricAuthenticator;
   final Future<bool> Function()? deviceAuthenticationAvailabilityChecker;
@@ -46,6 +48,10 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   AppLockInitializationState _lockState = AppLockInitializationState.loading;
   late bool _storedStateLoaded;
   DateTime? _backgroundedAt;
+  int _lockSession = 0;
+  bool _deviceAuthenticationActive = false;
+  bool _foreground = true;
+  int? _pendingUnlockSession;
   String? _startupError;
   bool _startupDataIsCorrupt = false;
   bool _restoreRecoveryRequired = false;
@@ -170,23 +176,47 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
     if (_lockState == AppLockInitializationState.loading ||
         _lockState == AppLockInitializationState.failed ||
         !_lockConfig.enabled) {
       return;
     }
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden) {
-      _backgroundedAt = DateTime.now();
+    if (state == AppLifecycleState.inactive && _deviceAuthenticationActive) {
+      // Native authentication may briefly make the app inactive. A real
+      // background (hidden/paused) still invalidates the pending request.
       return;
     }
-    if (state == AppLifecycleState.resumed && _backgroundedAt != null) {
-      final elapsed = DateTime.now().difference(_backgroundedAt!).inSeconds;
-      if (elapsed >= _lockConfig.lockAfterSeconds) {
-        setState(() => _lockState = AppLockInitializationState.locked);
+    final now = widget.lockClock?.call() ?? DateTime.now();
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      if (_backgroundedAt == null) {
+        _backgroundedAt = now;
+        _pendingUnlockSession = null;
+        if (_lockState == AppLockInitializationState.locked) {
+          setState(() => _lockSession++);
+        }
       }
-      _backgroundedAt = null;
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      if (_backgroundedAt != null) {
+        final elapsed = now.difference(_backgroundedAt!).inSeconds;
+        _backgroundedAt = null;
+        if (_lockState != AppLockInitializationState.locked &&
+            (elapsed < 0 || elapsed >= _lockConfig.lockAfterSeconds)) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          setState(() {
+            _lockSession++;
+            _lockState = AppLockInitializationState.locked;
+          });
+        }
+      }
+      final pending = _pendingUnlockSession;
+      _pendingUnlockSession = null;
+      if (pending != null) _handleUnlocked(pending);
     }
   }
 
@@ -200,6 +230,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
               AppLockService.loadConfig());
       if (!mounted) return;
       setState(() {
+        _lockSession++;
         _lockConfig = config;
         _lockState = config.enabled
             ? AppLockInitializationState.locked
@@ -702,7 +733,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     await AppLockService.saveConfig(config);
     if (!mounted) return;
     setState(() {
-      _lockConfig = config;
+      _lockConfig = config.copyWith(hasPin: _lockConfig.hasPin);
       _lockState =
           config.enabled && _lockState == AppLockInitializationState.locked
           ? AppLockInitializationState.locked
@@ -710,14 +741,32 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _setLockPin(String pin) async {
-    await AppLockService.setPin(pin);
-    final updated = (await AppLockService.loadConfig()).copyWith(hasPin: true);
-    await _updateLockConfig(updated);
+  Future<void> _setLockPin(String pin, String? currentPin) async {
+    await AppLockService.setPin(pin, currentPin: currentPin);
+    if (mounted) {
+      setState(() => _lockConfig = _lockConfig.copyWith(hasPin: true));
+    }
   }
 
-  void _handleUnlocked() =>
-      setState(() => _lockState = AppLockInitializationState.unlocked);
+  Future<void> _disableLock(String pin) async {
+    final disabled = _lockConfig.copyWith(enabled: false);
+    await AppLockService.saveConfig(disabled, currentPin: pin);
+    if (!mounted) return;
+    setState(() => _lockConfig = disabled);
+  }
+
+  void _handleUnlocked(int session) {
+    if (!mounted ||
+        session != _lockSession ||
+        _lockState != AppLockInitializationState.locked) {
+      return;
+    }
+    if (!_foreground) {
+      _pendingUnlockSession = session;
+      return;
+    }
+    setState(() => _lockState = AppLockInitializationState.unlocked);
+  }
 
   void _beginConsentHandling() {
     if (_consentGateState != AdvertisingConsentGateState.waiting) return;
@@ -783,9 +832,13 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       return AppLockInitializationErrorScreen(onRetry: _loadLockConfig);
     }
     if (_lockState == AppLockInitializationState.locked) {
+      final session = _lockSession;
       return AppLockScreen(
+        sessionId: session,
+        onDeviceAuthenticationChanged: (active) =>
+            _deviceAuthenticationActive = active,
         config: _lockConfig,
-        onUnlocked: _handleUnlocked,
+        onUnlocked: () => _handleUnlocked(session),
         verifyPin: widget.pinVerifier,
         authenticateWithBiometrics: widget.biometricAuthenticator,
         deviceAuthenticationAvailabilityChecker:
@@ -863,6 +916,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         onRestoreBackup: _restoreBackup,
         onLockConfigChanged: _updateLockConfig,
         onSetLockPin: _setLockPin,
+        onDisableLock: _disableLock,
         onShowAbout: () => Navigator.of(
           context,
         ).push(_BriskaPageRoute(child: const AboutBriskaScreen())),

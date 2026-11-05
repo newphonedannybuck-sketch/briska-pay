@@ -28,7 +28,12 @@ Widget _settings({
         onCreateBackup: () async {},
         onRestoreBackup: () async {},
         onLockConfigChanged: saveLock ?? (_) async {},
-        onSetLockPin: savePin ?? (_) async {},
+        onSetLockPin: (pin, currentPin) async {
+          await savePin?.call(pin);
+        },
+        onDisableLock: (_) async {
+          await saveLock?.call(lockConfig.copyWith(enabled: false));
+        },
         onShowAbout: () {},
         onPreferencesChanged: savePreferences ?? (_) async {},
         onThemeModeChanged: saveTheme ?? (_) async {},
@@ -142,19 +147,37 @@ void main() {
       find.descendant(of: lockTile, matching: find.byType(Switch)),
     );
     await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Current PIN'),
+      '1234',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Disable App Lock'));
+    await tester.pumpAndSettle();
     expect(find.text('App lock disabled.'), findsNothing);
     expect(find.text('Could not update app lock.'), findsOneWidget);
     expect(find.text('SECURE_PATH_DETAIL'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Set PIN fallback'));
     await tester.tap(find.text('Set PIN fallback'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'PIN'), '4321');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Current PIN'),
+      '1234',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Confirm PIN'),
+      '4321',
+    );
     await tester.tap(find.text('Save PIN'));
     await tester.pumpAndSettle();
     expect(find.text('PIN updated.'), findsNothing);
     expect(find.text('Could not update PIN.'), findsOneWidget);
     expect(find.text('PIN_SECRET_DETAIL'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Theme'));
     await tester.tap(find.text('Dark'));

@@ -5,11 +5,15 @@ class AppLockScreen extends StatefulWidget {
     required this.config,
     required this.onUnlocked,
     this.verifyPin,
+    this.sessionId = 0,
+    this.onDeviceAuthenticationChanged,
     this.authenticateWithBiometrics,
     this.deviceAuthenticationAvailabilityChecker,
     super.key,
   });
 
+  final int sessionId;
+  final ValueChanged<bool>? onDeviceAuthenticationChanged;
   final AppLockConfig config;
   final VoidCallback onUnlocked;
   final Future<bool> Function(String pin)? verifyPin;
@@ -25,6 +29,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
   String? _error;
   String? _deviceAuthenticationFeedback;
   bool _checking = false;
+  bool _unlocked = false;
   bool? _deviceAuthenticationAvailable;
 
   @override
@@ -35,6 +40,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
 
   Future<void> _checkDeviceAuthenticationAvailability() async {
     if (!widget.config.useBiometrics) return;
+    final session = widget.sessionId;
     var available = false;
     try {
       available =
@@ -45,7 +51,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
     }
     if (!mounted) return;
     setState(() => _deviceAuthenticationAvailable = available);
-    if (available) await _unlockBiometric();
+    if (available && session == widget.sessionId) await _unlockBiometric();
   }
 
   @override
@@ -54,39 +60,63 @@ class _AppLockScreenState extends State<AppLockScreen> {
     super.dispose();
   }
 
-  Future<void> _unlockBiometric() async {
-    setState(() => _checking = true);
-    var ok = false;
-    try {
-      ok =
-          await (widget.authenticateWithBiometrics?.call() ??
-              AppLockService.authenticateWithBiometrics());
-    } catch (_) {
-      ok = false;
+  @override
+  void didUpdateWidget(AppLockScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId) {
+      _unlocked = false;
+      _pinController.clear();
+      _error = null;
     }
-    if (!mounted) return;
-    setState(() {
-      _checking = false;
-      if (!ok) {
-        _deviceAuthenticationFeedback =
-            'Device authentication was not completed. '
-            'Use your Briska Pay PIN or try again.';
-      }
-    });
-    if (ok) widget.onUnlocked();
   }
 
-  Future<void> _unlockPin() async {
-    final pin = _pinController.text.trim();
-    final ok =
-        await (widget.verifyPin?.call(pin) ?? AppLockService.verifyPin(pin));
-    if (!mounted) return;
+  Future<void> _authenticate({required bool biometric}) async {
+    if (_checking || _unlocked) return;
+    final session = widget.sessionId;
+    final unlock = widget.onUnlocked;
+    final deviceActivity = widget.onDeviceAuthenticationChanged;
+    setState(() => _checking = true);
+    if (biometric) deviceActivity?.call(true);
+    var ok = false;
+    String? error;
+    try {
+      ok = biometric
+          ? await (widget.authenticateWithBiometrics?.call() ??
+                AppLockService.authenticateWithBiometrics())
+          : await (widget.verifyPin?.call(_pinController.text) ??
+                AppLockService.verifyPin(_pinController.text));
+      if (!ok) {
+        error = biometric
+            ? 'Device authentication was not completed. Use your Briska Pay PIN or try again.'
+            : 'PIN did not match.';
+      }
+    } on PinCooldownException catch (cooldown) {
+      error = cooldown.toString();
+    } catch (_) {
+      error = biometric
+          ? 'Device authentication was not completed. Use your Briska Pay PIN or try again.'
+          : 'Could not verify authentication. Please try again.';
+    } finally {
+      if (biometric) deviceActivity?.call(false);
+      if (mounted) setState(() => _checking = false);
+    }
+    if (!mounted || session != widget.sessionId) return;
     if (ok) {
-      widget.onUnlocked();
+      _unlocked = true;
+      unlock();
     } else {
-      setState(() => _error = 'PIN did not match.');
+      setState(() {
+        if (biometric) {
+          _deviceAuthenticationFeedback = error;
+        } else {
+          _error = error;
+        }
+      });
     }
   }
+
+  Future<void> _unlockBiometric() => _authenticate(biometric: true);
+  Future<void> _unlockPin() => _authenticate(biometric: false);
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +150,9 @@ class _AppLockScreenState extends State<AppLockScreen> {
                       if (widget.config.useBiometrics &&
                           _deviceAuthenticationAvailable == true)
                         OutlinedButton.icon(
-                          onPressed: _checking ? null : _unlockBiometric,
+                          onPressed: _checking || _unlocked
+                              ? null
+                              : _unlockBiometric,
                           icon: const Icon(Icons.fingerprint_rounded),
                           label: Text(
                             _checking
@@ -149,6 +181,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: _pinController,
+                          enabled: !_checking && !_unlocked,
                           obscureText: true,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
@@ -161,7 +194,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
                         BriskaPrimaryButton(
                           label: 'Unlock',
                           icon: Icons.lock_open_rounded,
-                          onPressed: _unlockPin,
+                          onPressed: _checking || _unlocked ? null : _unlockPin,
                         ),
                       ],
                     ],
@@ -175,4 +208,3 @@ class _AppLockScreenState extends State<AppLockScreen> {
     );
   }
 }
-

@@ -9,6 +9,7 @@ class SettingsScreen extends StatefulWidget {
     required this.onRestoreBackup,
     required this.onLockConfigChanged,
     required this.onSetLockPin,
+    required this.onDisableLock,
     required this.onShowAbout,
     required this.onPreferencesChanged,
     this.deviceAuthenticationAvailabilityChecker,
@@ -23,7 +24,8 @@ class SettingsScreen extends StatefulWidget {
   final Future<void> Function() onCreateBackup;
   final Future<void> Function() onRestoreBackup;
   final Future<void> Function(AppLockConfig config) onLockConfigChanged;
-  final Future<void> Function(String pin) onSetLockPin;
+  final Future<void> Function(String pin, String? currentPin) onSetLockPin;
+  final Future<void> Function(String pin) onDisableLock;
   final VoidCallback onShowAbout;
   final FutureOr<void> Function(AppSettings) onPreferencesChanged;
   final bool? showTesterTools;
@@ -37,6 +39,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _anchorPromptShown = false;
+  bool _securityBusy = false;
   int _currencyPickerRevision = 0;
   int _formRevision = 0;
   int _saveRevision = 0;
@@ -638,28 +641,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Disabled by default. Forgotten PIN recovery may require reinstalling.',
                     ),
                     value: widget.lockConfig.enabled,
-                    onChanged: (value) async {
-                      try {
-                        if (value && !widget.lockConfig.hasPin) {
-                          final pin = await _promptForPin(context);
-                          if (pin == null) return;
-                          await widget.onSetLockPin(pin);
-                        }
-                        await widget.onLockConfigChanged(
-                          widget.lockConfig.copyWith(enabled: value),
-                        );
-                        _showSettingsFeedback(
-                          value ? 'App lock enabled.' : 'App lock disabled.',
-                        );
-                      } catch (error, stackTrace) {
-                        if (kDebugMode) {
-                          debugPrint('app-lock persistence failed: $error');
-                          debugPrintStack(stackTrace: stackTrace);
-                        }
-                        if (!mounted) return;
-                        _showSettingsFeedback('Could not update app lock.');
-                      }
-                    },
+                    onChanged: _securityBusy
+                        ? null
+                        : (value) async {
+                            setState(() => _securityBusy = true);
+                            try {
+                              if (!value) {
+                                if (!await _pinDialog(disabling: true)) return;
+                              } else {
+                                if (!widget.lockConfig.hasPin &&
+                                    !await _pinDialog(disabling: false)) {
+                                  return;
+                                }
+                                await widget.onLockConfigChanged(
+                                  widget.lockConfig.copyWith(enabled: true),
+                                );
+                              }
+                              _showSettingsFeedback(
+                                value
+                                    ? 'App lock enabled.'
+                                    : 'App lock disabled.',
+                              );
+                            } catch (_) {
+                              _showSettingsFeedback(
+                                'Could not update app lock.',
+                              );
+                            } finally {
+                              if (mounted) {
+                                setState(() => _securityBusy = false);
+                              }
+                            }
+                          },
                   ),
                   SwitchListTile(
                     key: const ValueKey('device-authentication-setting'),
@@ -672,7 +684,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     value: widget.lockConfig.useBiometrics,
                     onChanged:
-                        widget.lockConfig.enabled &&
+                        !_securityBusy &&
+                            widget.lockConfig.enabled &&
                             _deviceAuthenticationAvailable == true
                         ? (value) async {
                             try {
@@ -728,7 +741,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Text('After 15 minutes'),
                       ),
                     ],
-                    onChanged: widget.lockConfig.enabled
+                    onChanged: widget.lockConfig.enabled && !_securityBusy
                         ? (value) async {
                             try {
                               await widget.onLockConfigChanged(
@@ -753,20 +766,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: widget.lockConfig.enabled
+                    onPressed: widget.lockConfig.enabled && !_securityBusy
                         ? () async {
-                            final pin = await _promptForPin(context);
-                            if (pin != null) {
-                              try {
-                                await widget.onSetLockPin(pin);
+                            setState(() => _securityBusy = true);
+                            try {
+                              if (await _pinDialog(disabling: false)) {
                                 _showSettingsFeedback('PIN updated.');
-                              } catch (error, stackTrace) {
-                                if (kDebugMode) {
-                                  debugPrint('PIN persistence failed: $error');
-                                  debugPrintStack(stackTrace: stackTrace);
-                                }
-                                if (!mounted) return;
-                                _showSettingsFeedback('Could not update PIN.');
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() => _securityBusy = false);
                               }
                             }
                           }
@@ -890,41 +899,118 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<String?> _promptForPin(BuildContext context) async {
-    var enteredPin = '';
-    final pin = await showDialog<String>(
+  Future<bool> _pinDialog({required bool disabling}) async {
+    var current = '';
+    var pin = '';
+    var confirmation = '';
+    var saving = false;
+    String? error;
+    final result = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Set Briska Pay PIN'),
-        content: TextField(
-          autofocus: true,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          maxLength: 12,
-          onChanged: (value) => enteredPin = value,
-          decoration: const InputDecoration(
-            labelText: 'PIN',
-            helperText:
-                'Use at least 4 digits. Forgotten PINs cannot be recovered securely.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = enteredPin.trim();
-              if (value.length < 4) return;
-              Navigator.pop(dialogContext, value);
-            },
-            child: const Text('Save PIN'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) {
+          Future<void> save() async {
+            if (saving) return;
+            if (!disabling && !RegExp(r'^[0-9]{4,12}$').hasMatch(pin)) {
+              update(() => error = 'Use 4-12 numerical digits.');
+              return;
+            }
+            if (!disabling && pin != confirmation) {
+              update(() => error = 'PINs do not match.');
+              return;
+            }
+            update(() {
+              saving = true;
+              error = null;
+            });
+            try {
+              if (disabling) {
+                await widget.onDisableLock(current);
+              } else {
+                await widget.onSetLockPin(
+                  pin,
+                  widget.lockConfig.hasPin ? current : null,
+                );
+              }
+              if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+            } on PinCooldownException catch (cooldown) {
+              if (dialogContext.mounted) {
+                update(() => error = cooldown.toString());
+              }
+            } on PinVerificationException {
+              if (dialogContext.mounted) {
+                update(() => error = 'Current PIN did not match.');
+              }
+            } catch (_) {
+              if (dialogContext.mounted) {
+                update(
+                  () => error = disabling
+                      ? 'Could not update app lock.'
+                      : 'Could not update PIN.',
+                );
+              }
+            } finally {
+              if (dialogContext.mounted) update(() => saving = false);
+            }
+          }
+
+          Widget field(String label, ValueChanged<String> changed) => TextField(
+            enabled: !saving,
+            obscureText: true,
+            enableSuggestions: false,
+            autocorrect: false,
+            keyboardType: TextInputType.number,
+            onChanged: changed,
+            decoration: InputDecoration(labelText: label),
+          );
+          return PopScope(
+            canPop: !saving,
+            child: AlertDialog(
+              title: Text(
+                disabling ? 'Disable App Lock' : 'Set Briska Pay PIN',
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (disabling || widget.lockConfig.hasPin)
+                      field('Current PIN', (value) => current = value),
+                    if (!disabling) ...[
+                      field('PIN', (value) => pin = value),
+                      field('Confirm PIN', (value) => confirmation = value),
+                      const Text(
+                        'Use 4-12 numerical digits. Forgotten PINs cannot be recovered securely.',
+                      ),
+                    ],
+                    if (error != null) Text(error!),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: saving ? null : save,
+                  child: Text(
+                    saving
+                        ? 'Saving...'
+                        : disabling
+                        ? 'Disable App Lock'
+                        : 'Save PIN',
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
-    return pin;
+    return result == true;
   }
 
   List<Widget> _payScheduleControls(BuildContext context) {
