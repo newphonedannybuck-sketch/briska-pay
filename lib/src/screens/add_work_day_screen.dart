@@ -164,6 +164,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
   late final TextEditingController _notesController;
   late final TextEditingController _deductionReasonController;
   String? _siteError;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -281,9 +282,28 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    var saved = false;
+    try {
+      saved = await _submit();
+    } catch (error, stackTrace) {
+      debugPrint('entry submission failed: $error');
+      if (kDebugMode) debugPrintStack(stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save this day.')),
+        );
+      }
+    } finally {
+      if (mounted && !saved) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<bool> _submit() async {
     if (_entryType == 'WorkDay' && _siteController.text.trim().isEmpty) {
       setState(() => _siteError = 'Enter a site/job name');
-      return;
+      return false;
     }
     FocusScope.of(context).unfocus();
     final calculation = _calculation;
@@ -291,7 +311,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(calculation.error!)));
-      return;
+      return false;
     }
     final duplicate = widget.savedEntries.where((entry) {
       final sameDate =
@@ -328,7 +348,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
         ),
       );
       if (!mounted || choice == null || choice == _DuplicateChoice.cancel) {
-        return;
+        return false;
       }
       if (choice == _DuplicateChoice.editExisting) {
         final existing = duplicate.first;
@@ -351,7 +371,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
           _siteController.text = existing.siteName;
           _notesController.text = existing.notes;
         });
-        return;
+        return false;
       }
     }
     final entry = WorkEntry(
@@ -380,16 +400,14 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       deductionReason: _deductionReasonController.text.trim(),
     );
     final saved = await widget.onSave(entry);
-    if (!mounted) return;
-    if (!saved) return;
+    if (!mounted || !saved) return false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          widget.initialEntry == null ? 'Day saved.' : 'Day updated.',
-        ),
+        content: Text(_editingEntryId == null ? 'Day saved.' : 'Day updated.'),
       ),
     );
     Navigator.of(context).pop();
+    return true;
   }
 
   @override
@@ -397,7 +415,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.initialEntry == null ? 'Add Day' : 'Edit Day'),
+        title: Text(_editingEntryId == null ? 'Add Day' : 'Edit Day'),
         centerTitle: false,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
@@ -897,8 +915,8 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       bottomNavigationBar: _EntrySaveBar(
         calculation: _calculation,
         keyboardOpen: keyboardOpen,
-        onSave: _save,
-        label: widget.initialEntry == null ? 'Save Entry' : 'Update Entry',
+        onSave: _isSaving ? null : _save,
+        label: _editingEntryId == null ? 'Save Entry' : 'Update Entry',
       ),
     );
   }
@@ -914,7 +932,7 @@ class _EntrySaveBar extends StatelessWidget {
 
   final WorkCalculation calculation;
   final bool keyboardOpen;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final String label;
 
   @override
@@ -1284,7 +1302,7 @@ class _TimeInputField extends StatefulWidget {
 
 class _TimeInputFieldState extends State<_TimeInputField> {
   late final TextEditingController _controller;
-  bool _normalizing = false;
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
@@ -1294,28 +1312,48 @@ class _TimeInputFieldState extends State<_TimeInputField> {
           WorkCalculator.normalizeTime(widget.initialValue) ??
           widget.initialValue,
     );
+    _focusNode = FocusNode()..addListener(_handleFocusChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _TimeInputField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Parent echoes of typing must not rewrite the text or move the cursor.
+    if (widget.initialValue != oldWidget.initialValue &&
+        widget.initialValue != _controller.text) {
+      final value =
+          WorkCalculator.normalizeTime(widget.initialValue) ??
+          widget.initialValue;
+      _controller.value = TextEditingValue(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+      );
+    }
   }
 
   @override
   void dispose() {
+    _focusNode
+      ..removeListener(_handleFocusChanged)
+      ..dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _handleChanged(String value) {
-    if (_normalizing) return;
+  void _handleFocusChanged() {
+    if (!_focusNode.hasFocus) _normalizeCompletedInput();
+  }
+
+  void _normalizeCompletedInput() {
+    final value = _controller.text;
     final normalized = WorkCalculator.normalizeTime(value);
     if (normalized != null && normalized != value) {
-      _normalizing = true;
       _controller.value = TextEditingValue(
         text: normalized,
         selection: TextSelection.collapsed(offset: normalized.length),
       );
-      _normalizing = false;
       widget.onChanged(normalized);
-      return;
     }
-    widget.onChanged(value);
   }
 
   TimeOfDay _initialTimeOfDay() {
@@ -1343,7 +1381,7 @@ class _TimeInputFieldState extends State<_TimeInputField> {
         );
       },
     );
-    if (selected == null) return;
+    if (!mounted || selected == null) return;
     final value = formatTime(hour: selected.hour, minute: selected.minute);
     _controller.value = TextEditingValue(
       text: value,
@@ -1360,6 +1398,7 @@ class _TimeInputFieldState extends State<_TimeInputField> {
       const SizedBox(height: 8),
       TextField(
         controller: _controller,
+        focusNode: _focusNode,
         keyboardType: TextInputType.datetime,
         decoration: InputDecoration(
           hintText: widget.hint,
@@ -1369,8 +1408,12 @@ class _TimeInputFieldState extends State<_TimeInputField> {
             onPressed: _pickTime,
           ),
         ),
-        onChanged: _handleChanged,
-        onEditingComplete: widget.onFinished,
+        onChanged: widget.onChanged,
+        onEditingComplete: () {
+          _normalizeCompletedInput();
+          _focusNode.unfocus();
+          widget.onFinished?.call();
+        },
       ),
     ],
   );

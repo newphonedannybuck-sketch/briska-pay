@@ -2505,6 +2505,7 @@ void main() {
     final fields = find.byType(TextField);
     await tester.enterText(fields.at(2), '730');
     await tester.enterText(fields.at(3), '17.00');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
     expect(find.text('07:30'), findsOneWidget);
