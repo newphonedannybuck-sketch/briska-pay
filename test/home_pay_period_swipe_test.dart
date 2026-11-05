@@ -2,6 +2,7 @@ import 'package:briska/src/display_format.dart';
 import 'package:briska/src/models.dart';
 import 'package:briska/src/pay_schedule.dart';
 import 'package:briska/src/premium_home_screen.dart';
+import 'package:briska/src/work_calculator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,20 +16,22 @@ void main() {
     double rate = 10,
     double allowance = 0,
     double uplift = 0,
-  }) => WorkEntry(
-    id: id,
-    date: date,
-    siteName: id,
-    startTime: start,
-    finishTime: finish,
-    breakMinutes: breakMinutes,
-    hourlyRateUsed: rate,
-    dailyAllowance: allowance,
-    jobUplift: uplift,
-    totalHours: 0,
-    wages: 0,
-    totalPay: 0,
-    notes: '',
+  }) => WorkCalculator.recalculateEntry(
+    WorkEntry(
+      id: id,
+      date: date,
+      siteName: id,
+      startTime: start,
+      finishTime: finish,
+      breakMinutes: breakMinutes,
+      hourlyRateUsed: rate,
+      dailyAllowance: allowance,
+      jobUplift: uplift,
+      totalHours: 0,
+      wages: 0,
+      totalPay: 0,
+      notes: '',
+    ),
   );
 
   Future<void> pumpHome(

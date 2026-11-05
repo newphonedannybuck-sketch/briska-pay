@@ -16,6 +16,7 @@ import 'package:briska/src/local_storage.dart';
 import 'package:briska/src/pay_schedule.dart';
 import 'package:briska/src/premium_home_screen.dart';
 import 'package:briska/src/release_info.dart';
+import 'package:briska/src/work_calculator.dart';
 
 void main() {
   setUp(() {
@@ -646,21 +647,23 @@ void main() {
     });
 
     WorkEntry currentEntry({required String id, required String finishTime}) =>
-        WorkEntry(
-          id: id,
-          date: DateTime.now(),
-          siteName: 'Hours test',
-          startTime: '08:00',
-          finishTime: finishTime,
-          breakMinutes: 0,
-          workLocation: 'Home',
-          hourlyRateUsed: 20,
-          dailyAllowance: 0,
-          jobUplift: 0,
-          totalHours: 0,
-          wages: 0,
-          totalPay: 0,
-          notes: '',
+        WorkCalculator.recalculateEntry(
+          WorkEntry(
+            id: id,
+            date: DateTime.now(),
+            siteName: 'Hours test',
+            startTime: '08:00',
+            finishTime: finishTime,
+            breakMinutes: 0,
+            workLocation: 'Home',
+            hourlyRateUsed: 20,
+            dailyAllowance: 0,
+            jobUplift: 0,
+            totalHours: 0,
+            wages: 0,
+            totalPay: 0,
+            notes: '',
+          ),
         );
 
     final scenarios = [

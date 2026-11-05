@@ -179,7 +179,7 @@ void main() {
     expect(result.totalPay, 210);
   });
 
-  test('Unpaid Day Off has zero hours and wages but includes uplift', () {
+  test('summary preserves recorded Unpaid Day Off values', () {
     final unpaid = WorkEntry(
       id: 'unpaid',
       entryType: 'UnpaidDayOff',
@@ -200,11 +200,11 @@ void main() {
 
     final summary = WorkCalculator.summarize([unpaid]);
 
-    expect(summary.totalHours, 0);
-    expect(summary.totalWages, 0);
-    expect(summary.totalDailyAllowance, 0);
+    expect(summary.totalHours, 8.5);
+    expect(summary.totalWages, 170);
+    expect(summary.totalDailyAllowance, 20);
     expect(summary.totalJobUplift, 150);
-    expect(summary.totalExpectedPay, 150);
+    expect(summary.totalExpectedPay, 340);
     expect(summary.unpaidDays, 1);
     expect(summary.holidayDays, 0);
   });
@@ -224,7 +224,7 @@ void main() {
     expect(result.error, 'Job uplift cannot be negative.');
   });
 
-  test('summaries recalculate stale overnight totals', () {
+  test('summaries preserve recorded overnight totals', () {
     final staleInvalid = WorkEntry(
       id: 'bad-time',
       date: DateTime(2026, 7, 9),
@@ -244,10 +244,10 @@ void main() {
 
     final summary = WorkCalculator.summarize([staleInvalid]);
 
-    expect(summary.totalHours, 14.5);
-    expect(summary.totalWages, 290);
+    expect(summary.totalHours, 8);
+    expect(summary.totalWages, 160);
     expect(summary.totalDailyAllowance, 10);
     expect(summary.totalJobUplift, 50);
-    expect(summary.totalExpectedPay, 350);
+    expect(summary.totalExpectedPay, 220);
   });
 }

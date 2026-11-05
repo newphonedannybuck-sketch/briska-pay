@@ -459,8 +459,7 @@ class _CalendarEntrySummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final calculated = WorkCalculator.recalculateEntry(entry);
-    final status = _CalendarStatus.fromEntry(calculated);
+    final status = _CalendarStatus.fromEntry(entry);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -484,14 +483,14 @@ class _CalendarEntrySummary extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _entryTitle(calculated),
+                    _entryTitle(entry),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   Text(
-                    calculated.entryType == 'WorkDay'
-                        ? '${formatHoursLabel(calculated.totalHours)} · ${settings.labelForRate(calculated.rateType)}'
+                    entry.entryType == 'WorkDay'
+                        ? '${formatHoursLabel(entry.totalHours)} · ${settings.labelForRate(entry.rateType)}'
                         : status.label,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -502,7 +501,7 @@ class _CalendarEntrySummary extends StatelessWidget {
               ),
             ),
             Text(
-              _money(calculated.totalPay),
+              _money(entry.totalPay),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 4),

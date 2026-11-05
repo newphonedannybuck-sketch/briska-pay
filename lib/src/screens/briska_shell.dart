@@ -66,9 +66,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     super.initState();
     _preferences = widget.initialSettings;
     CurrencyFormatter.current = _preferences.currency;
-    _entries = widget.initialEntries
-        .map(WorkCalculator.recalculateEntry)
-        .toList();
+    _entries = widget.initialEntries.toList();
     _exportRecords = List.of(widget.initialExports);
     _storedStateLoaded = !widget.useLocalStorage;
     final adsConfiguration = AdsConfiguration.current();
@@ -946,4 +944,3 @@ class _PreviewLine extends StatelessWidget {
     ),
   );
 }
-

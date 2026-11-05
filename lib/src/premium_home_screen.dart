@@ -820,10 +820,7 @@ Future<bool> _showEntryDetails(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (context) => _EntryDetailsSheet(
-      entry: WorkCalculator.recalculateEntry(source),
-      settings: settings,
-    ),
+    builder: (context) => _EntryDetailsSheet(entry: source, settings: settings),
   );
   return result ?? false;
 }
@@ -1124,7 +1121,7 @@ class _ActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final item = WorkCalculator.recalculateEntry(entry);
+    final item = entry;
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       button: true,

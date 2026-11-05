@@ -17,7 +17,6 @@ class WorkEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entry = WorkCalculator.recalculateEntry(this.entry);
     return Card(
       key: ValueKey('entry-card-${entry.id}'),
       child: Padding(

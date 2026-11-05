@@ -297,7 +297,7 @@ abstract final class WorkCalculator {
   }
 
   static WorkSummary summarize(Iterable<WorkEntry> source) {
-    final entries = source.map(recalculateEntry).toList();
+    final entries = source.toList();
     return WorkSummary(
       entries: entries,
       totalHours: entries.fold(0, (sum, entry) => sum + entry.totalHours),
