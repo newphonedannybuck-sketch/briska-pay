@@ -1,5 +1,10 @@
 part of '../briska_app.dart';
 
+class _ExportLibraryFailure implements Exception {
+  const _ExportLibraryFailure(this.message);
+  final String message;
+}
+
 class ExportActionOverrides {
   const ExportActionOverrides({
     this.open,
@@ -38,9 +43,9 @@ class ExportScreen extends StatefulWidget {
   final AppSettings settings;
   final List<ExportedFileRecord> records;
   final ValueChanged<AppSettings> onPreferencesChanged;
-  final ValueChanged<ExportedFileRecord> onAdd;
-  final ValueChanged<ExportedFileRecord> onDelete;
-  final ValueChanged<ExportedFileRecord> onUpdate;
+  final Future<bool> Function(ExportedFileRecord) onAdd;
+  final Future<bool> Function(ExportedFileRecord) onDelete;
+  final Future<bool> Function(ExportedFileRecord) onUpdate;
   final bool libraryOnly;
   final ExportActionOverrides? actionOverrides;
 
@@ -49,6 +54,55 @@ class ExportScreen extends StatefulWidget {
 }
 
 class _ExportScreenState extends State<ExportScreen> {
+  late final ValueNotifier<List<ExportedFileRecord>> _libraryRecords;
+  // Avoid overlapping file operations or toggles based on the same stale card.
+  final Set<String> _busyRecords = {};
+
+  Future<void> _recordAction(
+    ExportedFileRecord record,
+    Future<void> Function() action,
+  ) async {
+    if (!_busyRecords.add(record.id)) return;
+    try {
+      await action();
+    } finally {
+      _busyRecords.remove(record.id);
+    }
+  }
+
+  Future<bool> _persist(
+    Future<bool> Function(ExportedFileRecord) callback,
+    ExportedFileRecord record,
+  ) async {
+    try {
+      return await callback(record);
+    } catch (error) {
+      if (kDebugMode) debugPrint('export library persistence failed: $error');
+      return false;
+    }
+  }
+
+  void _message(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _favourite(
+    BuildContext context,
+    ExportedFileRecord record,
+  ) async {
+    if (!await _persist(
+      widget.onUpdate,
+      record.copyWith(isFavourite: !record.isFavourite),
+    )) {
+      if (context.mounted) {
+        _message(context, 'Could not save favourite status. Please try again.');
+      }
+    }
+  }
+
   bool _isExporting = false;
   bool isPreviewing = false;
   bool _showMoreOptions = false;
@@ -66,6 +120,7 @@ class _ExportScreenState extends State<ExportScreen> {
   @override
   void initState() {
     super.initState();
+    _libraryRecords = ValueNotifier(widget.records);
     _rangeType = _defaultRangeType(widget.settings);
     _options = ExportOptions(includeCompanyName: widget.companyName.isNotEmpty);
     _fileNameController = TextEditingController();
@@ -75,6 +130,12 @@ class _ExportScreenState extends State<ExportScreen> {
   @override
   void didUpdateWidget(covariant ExportScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The library route is a sibling of this screen, so notify after this build.
+    if (oldWidget.records != widget.records) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _libraryRecords.value = widget.records;
+      });
+    }
     if (oldWidget.settings.payFrequency != widget.settings.payFrequency ||
         oldWidget.settings.payPeriodAnchorDate !=
             widget.settings.payPeriodAnchorDate ||
@@ -131,6 +192,7 @@ class _ExportScreenState extends State<ExportScreen> {
 
   @override
   void dispose() {
+    _libraryRecords.dispose();
     _fileNameController.dispose();
     super.dispose();
   }
@@ -449,9 +511,14 @@ class _ExportScreenState extends State<ExportScreen> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _RecentExportCard(
                       record: record,
-                      onOpen: () => _open(context, record),
-                      onShare: () => _share(context, record),
-                      onDelete: () => _confirmDelete(context, record),
+                      onOpen: () =>
+                          _recordAction(record, () => _open(context, record)),
+                      onShare: () =>
+                          _recordAction(record, () => _share(context, record)),
+                      onDelete: () => _recordAction(
+                        record,
+                        () => _confirmDelete(context, record),
+                      ),
                     ),
                   ),
                 ),
@@ -472,18 +539,21 @@ class _ExportScreenState extends State<ExportScreen> {
   void _openExportLibrary(BuildContext context) {
     Navigator.of(context).push(
       _BriskaPageRoute(
-        child: ExportScreen(
-          entries: widget.entries,
-          fullName: widget.fullName,
-          companyName: widget.companyName,
-          settings: widget.settings,
-          records: widget.records,
-          onPreferencesChanged: widget.onPreferencesChanged,
-          onAdd: widget.onAdd,
-          onDelete: widget.onDelete,
-          onUpdate: widget.onUpdate,
-          libraryOnly: true,
-          actionOverrides: widget.actionOverrides,
+        child: ValueListenableBuilder<List<ExportedFileRecord>>(
+          valueListenable: _libraryRecords,
+          builder: (context, records, _) => ExportScreen(
+            entries: widget.entries,
+            fullName: widget.fullName,
+            companyName: widget.companyName,
+            settings: widget.settings,
+            records: records,
+            onPreferencesChanged: widget.onPreferencesChanged,
+            onAdd: widget.onAdd,
+            onDelete: widget.onDelete,
+            onUpdate: widget.onUpdate,
+            libraryOnly: true,
+            actionOverrides: widget.actionOverrides,
+          ),
         ),
       ),
     );
@@ -528,20 +598,26 @@ class _ExportScreenState extends State<ExportScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _ExportedFileCard(
                   record: record,
-                  onOpen: () => _open(context, record),
-                  onShare: () => _share(context, record),
+                  onOpen: () =>
+                      _recordAction(record, () => _open(context, record)),
+                  onShare: () =>
+                      _recordAction(record, () => _share(context, record)),
                   onPrint:
                       ExportFormat.fromFileType(record.fileType) ==
                               ExportFormat.pdfTimesheet ||
                           ExportFormat.fromFileType(record.fileType) ==
                               ExportFormat.pdfSummary
-                      ? () => _print(context, record)
+                      ? () =>
+                            _recordAction(record, () => _print(context, record))
                       : null,
-                  onRename: () => _rename(context, record),
-                  onFavourite: () => widget.onUpdate(
-                    record.copyWith(isFavourite: !record.isFavourite),
+                  onRename: () =>
+                      _recordAction(record, () => _rename(context, record)),
+                  onFavourite: () =>
+                      _recordAction(record, () => _favourite(context, record)),
+                  onDelete: () => _recordAction(
+                    record,
+                    () => _confirmDelete(context, record),
                   ),
-                  onDelete: () => _confirmDelete(context, record),
                 ),
               ),
             ),
@@ -737,6 +813,7 @@ class _ExportScreenState extends State<ExportScreen> {
     String fileNameLabel,
     ExportFormat format,
   ) async {
+    final add = widget.onAdd;
     try {
       final now = DateTime.now();
       final result = await _runExport(
@@ -766,7 +843,16 @@ class _ExportScreenState extends State<ExportScreen> {
         currencyCode: widget.settings.currency.code,
         currencySymbol: widget.settings.currency.symbol,
       );
-      widget.onAdd(record);
+      if (!await _persist(add, record)) {
+        if (context.mounted) {
+          _message(
+            context,
+            'The file was created at ${record.filePath}, but could not be added to the Export Library. Keep this file or try exporting again.',
+          );
+        }
+        return;
+      }
+      if (!context.mounted) return;
       await _showExportCompleteActions(context, record);
     } catch (error) {
       if (!context.mounted) return;
@@ -918,6 +1004,12 @@ class _ExportScreenState extends State<ExportScreen> {
       );
     } catch (error) {
       if (kDebugMode) debugPrint('open export failed: $error');
+      if (error is _ExportLibraryFailure) {
+        if (context.mounted) {
+          _message(context, error.message);
+        }
+        return;
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -950,6 +1042,12 @@ class _ExportScreenState extends State<ExportScreen> {
       }
     } catch (error) {
       if (kDebugMode) debugPrint('share export failed: $error');
+      if (error is _ExportLibraryFailure) {
+        if (context.mounted) {
+          _message(context, error.message);
+        }
+        return;
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -960,6 +1058,7 @@ class _ExportScreenState extends State<ExportScreen> {
   }
 
   Future<void> _rename(BuildContext context, ExportedFileRecord record) async {
+    final update = widget.onUpdate;
     final format = ExportFormat.fromFileType(record.fileType);
     final initialName = record.fileName.replaceFirst(
       RegExp('\\.${RegExp.escape(format.extension)}\$'),
@@ -978,14 +1077,10 @@ class _ExportScreenState extends State<ExportScreen> {
     try {
       var filePath = record.filePath;
       if (record.isAvailable) {
-        record = await _providerCompatibleRecord(record);
+        record = await _providerCompatibleRecord(record, onUpdate: update);
         filePath = record.filePath;
         final separator = Platform.pathSeparator;
-        final separatorIndex = record.filePath.lastIndexOf(separator);
-        if (separatorIndex == -1) {
-          throw FileSystemException('Could not find export folder.');
-        }
-        final parent = record.filePath.substring(0, separatorIndex);
+        final parent = File(record.filePath).parent.path;
         final targetPath = '$parent$separator$fileName';
         if (targetPath != record.filePath && await File(targetPath).exists()) {
           throw FileSystemException('A file with that name already exists.');
@@ -999,13 +1094,50 @@ class _ExportScreenState extends State<ExportScreen> {
           filePath = (await source.rename(targetPath)).path;
         }
       }
-      widget.onUpdate(record.copyWith(fileName: fileName, filePath: filePath));
+      if (!await _persist(
+        update,
+        record.copyWith(fileName: fileName, filePath: filePath),
+      )) {
+        if (filePath != record.filePath) {
+          try {
+            final original = File(record.filePath);
+            if (await original.exists()) {
+              throw const FileSystemException(
+                'Original filename is now occupied.',
+              );
+            }
+            await File(filePath).rename(record.filePath);
+          } catch (_) {
+            if (mounted) setState(() {});
+            if (context.mounted) {
+              _message(
+                context,
+                'The file was renamed to $filePath, but the Export Library could not be updated and the original name could not be restored. Keep the renamed file; remove the old library record or export again.',
+              );
+            }
+            return;
+          }
+        }
+        if (context.mounted) {
+          _message(
+            context,
+            'Could not save the new name. The original filename has been kept. Please try again.',
+          );
+        }
+        return;
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Export renamed.')));
     } catch (error) {
       if (kDebugMode) debugPrint('rename export failed: $error');
+      if (error is _ExportLibraryFailure) {
+        if (context.mounted) {
+          _message(context, error.message);
+        }
+        return;
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1037,6 +1169,12 @@ class _ExportScreenState extends State<ExportScreen> {
       }
     } catch (error) {
       if (kDebugMode) debugPrint('print export failed: $error');
+      if (error is _ExportLibraryFailure) {
+        if (context.mounted) {
+          _message(context, error.message);
+        }
+        return;
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1047,14 +1185,20 @@ class _ExportScreenState extends State<ExportScreen> {
   }
 
   Future<ExportedFileRecord> _providerCompatibleRecord(
-    ExportedFileRecord record,
-  ) async {
+    ExportedFileRecord record, {
+    Future<bool> Function(ExportedFileRecord)? onUpdate,
+  }) async {
+    final update = onUpdate ?? widget.onUpdate;
     final file = await ExportFileNamer.ensureProviderCompatibleFile(
       File(record.filePath),
     );
     if (file.path == record.filePath) return record;
     final updated = record.copyWith(filePath: file.path);
-    widget.onUpdate(updated);
+    if (!await _persist(update, updated)) {
+      throw const _ExportLibraryFailure(
+        'Could not save the updated export path. The original file is still available. Please try again.',
+      );
+    }
     return updated;
   }
 
@@ -1062,6 +1206,7 @@ class _ExportScreenState extends State<ExportScreen> {
     BuildContext context,
     ExportedFileRecord record,
   ) async {
+    final delete = widget.onDelete;
     final result = await showDialog<_DeleteChoice>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1148,7 +1293,18 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
     }
-    widget.onDelete(record);
+    if (!await _persist(delete, record)) {
+      if (mounted) setState(() {});
+      if (context.mounted) {
+        _message(
+          context,
+          result == _DeleteChoice.fileToo
+              ? 'The file was deleted, but its library record could not be removed. Try Remove from library again.'
+              : 'Could not remove this export from the library. Please try again.',
+        );
+      }
+      return;
+    }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

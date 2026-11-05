@@ -259,6 +259,39 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     return result;
   }
 
+  Future<bool> _changeExportRecord(
+    ExportedFileRecord record,
+    int generation, {
+    bool add = false,
+    bool delete = false,
+  }) => _queueEntryOperation(() async {
+    if (!mounted ||
+        _restoreRecoveryRequired ||
+        generation != _entryDataGeneration) {
+      return false;
+    }
+    final updated = List<ExportedFileRecord>.of(_exportRecords);
+    final index = updated.indexWhere((item) => item.id == record.id);
+    if (delete) {
+      updated.removeWhere((item) => item.id == record.id);
+    } else if (index != -1) {
+      updated[index] = record;
+    } else if (add) {
+      updated.insert(0, record);
+    } else {
+      return false;
+    }
+    try {
+      await LocalStorage.saveExportRecords(updated);
+      if (!mounted) return false;
+      setState(() => _exportRecords = updated);
+      return true;
+    } catch (error) {
+      if (kDebugMode) debugPrint('export library save failed: $error');
+      return false;
+    }
+  });
+
   Future<void> _resetLocalDataAfterConfirmation() =>
       _queueEntryOperation(_resetLocalDataInQueue);
 
@@ -759,6 +792,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         }
       });
     }
+    // Keep callbacks held by dialogs/file operations tied to their original data.
+    final exportGeneration = _entryDataGeneration;
     final screens = [
       HomeScreen(
         entries: _entries,
@@ -789,19 +824,11 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           setState(() => _preferences = value);
           _savePreferencesSilently(value);
         },
-        onAdd: (record) {
-          setState(() => _exportRecords.insert(0, record));
-          LocalStorage.saveExportRecords(_exportRecords);
-        },
-        onDelete: (record) {
-          setState(() => _exportRecords.removeWhere((e) => e.id == record.id));
-          LocalStorage.saveExportRecords(_exportRecords);
-        },
-        onUpdate: (record) => setState(() {
-          final index = _exportRecords.indexWhere((e) => e.id == record.id);
-          if (index != -1) _exportRecords[index] = record;
-          LocalStorage.saveExportRecords(_exportRecords);
-        }),
+        onAdd: (record) =>
+            _changeExportRecord(record, exportGeneration, add: true),
+        onDelete: (record) =>
+            _changeExportRecord(record, exportGeneration, delete: true),
+        onUpdate: (record) => _changeExportRecord(record, exportGeneration),
       ),
       SettingsScreen(
         preferences: _preferences,

@@ -58,6 +58,9 @@ class LocalStorage {
   @visibleForTesting
   static Future<void> Function(List<WorkEntry>)? saveEntriesOverride;
   @visibleForTesting
+  static Future<void> Function(List<ExportedFileRecord>)?
+  saveExportRecordsOverride;
+  @visibleForTesting
   static Future<String?> Function(String key)? readStringOverride;
   @visibleForTesting
   static Future<void> Function(RestoreWriteStage stage, bool isRollback)?
@@ -168,6 +171,8 @@ class LocalStorage {
   }
 
   static Future<void> saveExportRecords(List<ExportedFileRecord> records) {
+    final override = saveExportRecordsOverride;
+    if (override != null) return override(records);
     return _preferences.setString(
       _exportsKey,
       jsonEncode(records.map((record) => record.toJson()).toList()),
