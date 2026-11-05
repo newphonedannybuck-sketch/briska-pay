@@ -92,7 +92,7 @@ abstract final class BriskaBackupService {
     final data = BriskaBackupData(
       createdAt: now,
       settings: settings,
-      workEntries: workEntries.map(WorkCalculator.recalculateEntry).toList(),
+      workEntries: workEntries,
       exportRecords: exportRecords,
     );
     const encoder = JsonEncoder.withIndent('  ');
@@ -322,7 +322,7 @@ abstract final class BriskaBackupService {
       );
       if (!calculation.isValid) _rejectInvalidBackup();
     }
-    return WorkCalculator.recalculateEntry(WorkEntry.fromJson(json));
+    return WorkEntry.fromJson(json);
   }
 
   static void _validateSettings(

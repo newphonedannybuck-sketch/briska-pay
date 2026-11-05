@@ -1,10 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:briska/src/backup_service.dart';
+import 'package:briska/src/local_storage.dart';
 import 'package:briska/src/models.dart';
+import 'package:briska/src/work_calculator.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   Map<String, dynamic> validBackup({
     List<Object?>? entries,
     List<Object?>? exports,
@@ -59,6 +67,93 @@ void main() {
           isNot(anyOf(contains('workEntries'), contains('hourlyRateUsed'))),
         ),
   );
+
+  test(
+    'backup file and transactional restore preserve historical values',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'briska_backup_test_',
+      );
+      const channel = MethodChannel('plugins.flutter.io/path_provider');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            expect(call.method, 'getApplicationDocumentsDirectory');
+            return directory.path;
+          });
+      addTearDown(() async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+        await directory.delete(recursive: true);
+      });
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
+      final entries = [
+        for (final type in ['WorkDay', 'Holiday', 'bankHoliday'])
+          WorkEntry.fromJson({
+            ...validEntry(),
+            'id': type,
+            'entryType': type,
+            'isPaidBankHoliday': true,
+            'totalHours': 6.25,
+            'wages': 123.45,
+            'totalPay': 140.75,
+          }),
+      ];
+      for (final entry in entries) {
+        final fresh = WorkCalculator.recalculateEntry(entry);
+        expect(fresh.totalHours, isNot(entry.totalHours));
+        expect(fresh.wages, isNot(entry.wages));
+        expect(fresh.totalPay, isNot(entry.totalPay));
+      }
+
+      final file = await BriskaBackupService.createBackupFile(
+        settings: const AppSettings(),
+        workEntries: entries,
+        exportRecords: [],
+        createdAt: DateTime(2026, 7, 14),
+      );
+      final originalJson = entries.map((entry) => entry.toJson()).toList();
+      final backupJson = jsonDecode(await file.readAsString()) as Map;
+      expect(backupJson['backupVersion'], 1);
+      expect(backupJson['workEntries'], originalJson);
+
+      final preview = await BriskaBackupService.previewFile(file);
+      await LocalStorage.replaceAll(
+        settings: preview.data.settings,
+        entries: preview.data.workEntries,
+        exportRecords: preview.data.exportRecords,
+      );
+      final restored = await LocalStorage.loadEntries();
+      expect(
+        {for (final entry in restored) entry.id: entry.toJson()},
+        {for (final entry in entries) entry.id: entry.toJson()},
+      );
+    },
+  );
+
+  test('legacy backup retains recorded totals and legacy rate mapping', () {
+    final entry = validEntry()
+      ..remove('rateType')
+      ..['workLocation'] = 'Away'
+      ..['totalHours'] = 6.25
+      ..['wages'] = 123.45
+      ..['totalPay'] = 140.75;
+    final backup = validBackup(entries: [entry])
+      ..['appName'] =
+          'Wage'
+          'Mate'
+      ..['settings'] = {'homeHourlyRate': 20, 'awayHourlyRate': 25}
+      ..remove('exportRecords');
+
+    final preview = BriskaBackupService.previewJson(backup);
+    final restored = preview.data.workEntries.single;
+    expect(restored.rateType, 'secondary');
+    expect(restored.totalHours, 6.25);
+    expect(restored.wages, 123.45);
+    expect(restored.totalPay, 140.75);
+    expect(preview.data.settings.primaryRateValue, 20);
+    expect(preview.exportCount, 0);
+  });
 
   test('backup preview accepts valid versioned Briska data', () {
     final preview = BriskaBackupService.previewJson({
@@ -258,6 +353,10 @@ void main() {
       'invalid start time': (entry) => entry['startTime'] = '25:00',
       'invalid finish time': (entry) => entry['finishTime'] = 'not-a-time',
       'invalid numeric value': (entry) => entry['totalPay'] = double.infinity,
+      'NaN hours': (entry) => entry['totalHours'] = double.nan,
+      'infinite wages': (entry) => entry['wages'] = double.infinity,
+      'negative total pay': (entry) => entry['totalPay'] = -1,
+      'break longer than shift': (entry) => entry['breakMinutes'] = 600,
       'numeric string': (entry) => entry['hourlyRateUsed'] = '20',
     }.entries) {
       test('rejects ${testCase.key}', () {
