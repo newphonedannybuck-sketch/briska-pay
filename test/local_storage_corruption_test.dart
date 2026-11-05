@@ -6,15 +6,21 @@ import 'package:briska/src/briska_app.dart';
 import 'package:briska/src/local_storage.dart';
 import 'package:briska/src/models.dart';
 import 'package:briska/src/premium_home_screen.dart';
+import 'package:briska/src/work_calculator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
-  setUp(() {
+  setUpAll(() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+  });
+
+  setUp(() async {
+    await SharedPreferencesAsync().clear();
     LocalStorage.readStringOverride = null;
     LocalStorage.saveEntriesOverride = null;
   });
@@ -62,6 +68,108 @@ void main() {
 
     expect((await LocalStorage.loadSettings()).companyName, 'Saved Employer');
     expect((await LocalStorage.loadEntries()).single.siteName, 'Saved Site');
+  });
+
+  Map<String, dynamic> historicalEntry(String id, String date) => {
+    'id': id,
+    'date': date,
+    'entryType': 'WorkDay',
+    'startTime': '08:00',
+    'finishTime': '16:00',
+    'breakMinutes': 30,
+    'workLocation': 'Home',
+    'hourlyRateUsed': 20,
+    'totalHours': 6.25,
+    'wages': 123.45,
+    'totalPay': 140.75,
+  };
+
+  test(
+    'loading preserves historical totals and sorts without saving',
+    () async {
+      final preferences = SharedPreferencesAsync();
+      final records = [
+        historicalEntry('oldest', '2024-01-01'),
+        historicalEntry('newest', '2024-03-01'),
+        historicalEntry('middle', '2024-02-01'),
+      ];
+      final storedJson = jsonEncode(records);
+      await preferences.setString('work_entries_v1', storedJson);
+      var saveCalls = 0;
+      LocalStorage.saveEntriesOverride = (_) async {
+        saveCalls++;
+      };
+
+      final fresh = WorkCalculator.recalculateEntry(
+        WorkEntry.fromJson(records.first),
+      );
+      expect(fresh.totalHours, isNot(6.25));
+      expect(fresh.wages, isNot(123.45));
+      expect(fresh.totalPay, isNot(140.75));
+
+      final entries = await LocalStorage.loadEntries();
+
+      expect(entries.map((entry) => entry.id), ['newest', 'middle', 'oldest']);
+      for (final entry in entries) {
+        expect(entry.totalHours, 6.25);
+        expect(entry.wages, 123.45);
+        expect(entry.totalPay, 140.75);
+      }
+      expect(saveCalls, 0);
+      expect(await preferences.getString('work_entries_v1'), storedJson);
+    },
+  );
+
+  test('valid entries load even when saving would throw', () async {
+    await SharedPreferencesAsync().setString(
+      'work_entries_v1',
+      jsonEncode([historicalEntry('saved', '2024-01-01')]),
+    );
+    LocalStorage.saveEntriesOverride = (_) async =>
+        throw StateError('Storage writes unavailable');
+
+    expect((await LocalStorage.loadEntries()).single.id, 'saved');
+  });
+
+  test('loading does not create or update the data-version marker', () async {
+    final preferences = SharedPreferencesAsync();
+    await preferences.setString(
+      'work_entries_v1',
+      jsonEncode([historicalEntry('saved', '2024-01-01')]),
+    );
+
+    await LocalStorage.loadEntries();
+    expect(await preferences.getInt('briska_data_version'), isNull);
+
+    await preferences.setInt('briska_data_version', 1);
+    await LocalStorage.loadEntries();
+    expect(await LocalStorage.loadDataVersion(), 1);
+  });
+
+  test('invalid entry records still report corruption', () async {
+    for (final value in [
+      '{}',
+      '[null]',
+      jsonEncode([historicalEntry('invalid-date', 'not-a-date')]),
+      jsonEncode([
+        {
+          ...historicalEntry('invalid-hours', '2024-01-01'),
+          'totalHours': 'bad',
+        },
+      ]),
+    ]) {
+      LocalStorage.readStringOverride = (_) async => value;
+      await expectLater(
+        LocalStorage.loadEntries(),
+        throwsA(
+          isA<LocalDataCorruptionException>().having(
+            (error) => error.dataSet,
+            'dataset',
+            LocalDataSet.workEntries,
+          ),
+        ),
+      );
+    }
   });
 
   test('malformed datasets are distinguished from missing data', () async {

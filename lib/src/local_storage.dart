@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models.dart';
 import 'currency.dart';
-import 'work_calculator.dart';
 
 enum LocalDataSet { settings, workEntries, exportLibrary }
 
@@ -92,14 +91,11 @@ class LocalStorage {
       entries =
           data
               .map((item) => WorkEntry.fromJson(item as Map<String, dynamic>))
-              .map(WorkCalculator.recalculateEntry)
               .toList()
             ..sort((a, b) => b.date.compareTo(a.date));
     } catch (_) {
       throw const LocalDataCorruptionException(LocalDataSet.workEntries);
     }
-    await saveEntries(entries);
-    await markCurrentDataVersion();
     return entries;
   }
 
