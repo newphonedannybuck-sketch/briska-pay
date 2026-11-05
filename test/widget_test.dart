@@ -1037,6 +1037,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Delete day?'), findsOneWidget);
+    expect(
+      find.textContaining('You can undo this briefly using the Undo action'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Friday, 10 July'), findsOneWidget);
     expect(
       find.descendant(

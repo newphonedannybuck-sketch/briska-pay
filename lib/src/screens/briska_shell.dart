@@ -49,6 +49,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   bool _restoreRecoveryRequired = false;
   bool _restoreInProgress = false;
   Future<void> _preferencesSaveQueue = Future<void>.value();
+  Future<void> _entryOperationQueue = Future<void>.value();
+  int _entryDataGeneration = 0;
   int _preferencesSaveRevision = 0;
   late final AdsConsentCoordinator _adsConsentCoordinator;
   late final AdsService _adsService;
@@ -249,7 +251,19 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _resetLocalDataAfterConfirmation() async {
+  // Include both snapshot construction and the UI commit in the queue.
+  // A failed operation must not poison the queue for the next operation.
+  Future<T> _queueEntryOperation<T>(Future<T> Function() operation) {
+    final result = _entryOperationQueue.then((_) => operation());
+    _entryOperationQueue = result.then<void>((_) {}, onError: (_, _) {});
+    return result;
+  }
+
+  Future<void> _resetLocalDataAfterConfirmation() =>
+      _queueEntryOperation(_resetLocalDataInQueue);
+
+  Future<void> _resetLocalDataInQueue() async {
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -271,6 +285,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     );
     if (confirmed != true) return;
     await LocalStorage.resetLocalData();
+    _entryDataGeneration++;
     if (!mounted) return;
     setState(() {
       _preferences = const AppSettings();
@@ -298,7 +313,17 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     );
   }
 
-  Future<bool> _saveEntry(WorkEntry entry) async {
+  Future<bool> _saveEntry(WorkEntry entry) {
+    final generation = _entryDataGeneration;
+    return _queueEntryOperation(() => _saveEntryInQueue(entry, generation));
+  }
+
+  Future<bool> _saveEntryInQueue(WorkEntry entry, int generation) async {
+    if (!mounted ||
+        _restoreRecoveryRequired ||
+        generation != _entryDataGeneration) {
+      return false;
+    }
     final calculatedEntry = WorkCalculator.recalculateEntry(entry);
     final updatedEntries = List<WorkEntry>.of(_entries);
     final index = updatedEntries.indexWhere(
@@ -327,6 +352,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   }
 
   Future<void> _deleteEntry(WorkEntry entry) async {
+    final generation = _entryDataGeneration;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -348,7 +374,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           title: const Text('Delete day?'),
           content: Text(
             "Delete this recorded day?\n\n$dateLabel\n$dayLabel\n\n"
-            "This can't be undone.",
+            'You can undo this briefly using the Undo action after deletion.',
           ),
           actions: [
             TextButton(
@@ -373,9 +399,20 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       },
     );
     if (confirmed != true || !mounted) return;
+    await _queueEntryOperation(() => _deleteEntryInQueue(entry.id, generation));
+  }
 
+  Future<void> _deleteEntryInQueue(String id, int generation) async {
+    if (!mounted ||
+        _restoreRecoveryRequired ||
+        generation != _entryDataGeneration) {
+      return;
+    }
+    final index = _entries.indexWhere((item) => item.id == id);
+    if (index == -1) return;
+    final deletedEntry = _entries[index];
     final updatedEntries = List<WorkEntry>.of(_entries)
-      ..removeWhere((item) => item.id == entry.id);
+      ..removeWhere((item) => item.id == id);
     try {
       await LocalStorage.saveEntries(updatedEntries);
       if (!mounted) return;
@@ -385,7 +422,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           content: const Text('Day deleted.'),
           action: SnackBarAction(
             label: 'Undo',
-            onPressed: () => _undoDeleteEntry(entry),
+            onPressed: () => _undoDeleteEntry(deletedEntry, generation),
           ),
         ),
       );
@@ -399,7 +436,15 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _undoDeleteEntry(WorkEntry entry) async {
+  Future<void> _undoDeleteEntry(WorkEntry entry, int generation) =>
+      _queueEntryOperation(() => _undoDeleteEntryInQueue(entry, generation));
+
+  Future<void> _undoDeleteEntryInQueue(WorkEntry entry, int generation) async {
+    if (!mounted ||
+        _restoreRecoveryRequired ||
+        generation != _entryDataGeneration) {
+      return;
+    }
     final restoredEntries = List<WorkEntry>.of(_entries);
     if (restoredEntries.any((item) => item.id == entry.id)) return;
     restoredEntries
@@ -467,6 +512,15 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   Future<void> _restoreBackup() async {
     if (_restoreInProgress) return;
     _restoreInProgress = true;
+    try {
+      await _queueEntryOperation(_restoreBackupInQueue);
+    } finally {
+      _restoreInProgress = false;
+    }
+  }
+
+  Future<void> _restoreBackupInQueue() async {
+    if (!mounted) return;
     try {
       final file = await BriskaBackupService.pickBackupFile();
       if (file == null) {
@@ -539,6 +593,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         entries: preview.data.workEntries,
         exportRecords: preview.data.exportRecords,
       );
+      _entryDataGeneration++;
       if (!mounted) return;
       setState(() {
         _preferences = preview.data.settings;
@@ -576,8 +631,6 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           ),
         ),
       );
-    } finally {
-      _restoreInProgress = false;
     }
   }
 
