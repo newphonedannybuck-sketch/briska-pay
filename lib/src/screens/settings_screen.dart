@@ -40,6 +40,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _currencyPickerRevision = 0;
   int _formRevision = 0;
   int _saveRevision = 0;
+  int _pendingSaves = 0;
+  int _draftRevision = 0;
+  bool _draftDirty = false;
   late AppSettings _draftPreferences;
   bool? _deviceAuthenticationAvailable;
 
@@ -67,12 +70,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void didUpdateWidget(SettingsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.preferences != widget.preferences) {
+    if (!_draftDirty &&
+        _pendingSaves == 0 &&
+        oldWidget.preferences != widget.preferences) {
       _draftPreferences = widget.preferences;
     }
   }
 
-  void _update(AppSettings value) => setState(() => _draftPreferences = value);
+  void _update(AppSettings value) => setState(() {
+    _draftDirty = true;
+    _draftRevision++;
+    _draftPreferences = value;
+  });
 
   void _showSettingsFeedback(String message) {
     if (!mounted) return;
@@ -103,25 +112,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       secondaryRateLabel: value.secondaryRateLabel.trim(),
     );
     final revision = ++_saveRevision;
+    _update(value);
+    final draftRevision = _draftRevision;
+    _pendingSaves++;
     try {
       await widget.onPreferencesChanged(value);
-      if (!mounted || revision != _saveRevision) return true;
-      setState(() => _draftPreferences = value);
+      if (!mounted ||
+          revision != _saveRevision ||
+          draftRevision != _draftRevision) {
+        return true;
+      }
+      setState(() {
+        _draftDirty = false;
+        _draftPreferences = value;
+      });
       if (successMessage != null) _showSettingsFeedback(successMessage);
       return true;
+    } on _StaleSettingsOperation {
+      return false;
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('settings persistence failed: $error');
         debugPrintStack(stackTrace: stackTrace);
       }
-      if (!mounted || revision != _saveRevision) return false;
+      if (!mounted ||
+          revision != _saveRevision ||
+          draftRevision != _draftRevision) {
+        return false;
+      }
       setState(() {
+        _draftDirty = false;
         _draftPreferences = widget.preferences;
         _currencyPickerRevision++;
         _formRevision++;
       });
       _showSettingsFeedback(failureMessage);
       return false;
+    } finally {
+      _pendingSaves--;
     }
   }
 
@@ -553,16 +581,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       themeModeFromSettings(_draftPreferences.themeMode),
                     },
                     onSelectionChanged: (selection) async {
+                      final previousTheme = _draftPreferences.themeMode;
+                      final wasDirty = _draftDirty;
+                      _update(
+                        _draftPreferences.copyWith(
+                          themeMode: themeModeToSettings(selection.first),
+                        ),
+                      );
+                      final draftRevision = _draftRevision;
+                      _pendingSaves++;
                       try {
                         await widget.onThemeModeChanged(selection.first);
+                        if (mounted && draftRevision == _draftRevision) {
+                          _draftDirty = wasDirty;
+                        }
+                      } on _StaleSettingsOperation {
+                        return;
                       } catch (error, stackTrace) {
                         if (kDebugMode) {
                           debugPrint('theme persistence failed: $error');
                           debugPrintStack(stackTrace: stackTrace);
                         }
                         if (!mounted) return;
-                        setState(() => _formRevision++);
+                        if (draftRevision == _draftRevision) {
+                          setState(() {
+                            _draftPreferences = _draftPreferences.copyWith(
+                              themeMode: previousTheme,
+                            );
+                            _draftDirty = wasDirty;
+                            _formRevision++;
+                          });
+                        }
                         _showSettingsFeedback('Could not update theme.');
+                      } finally {
+                        _pendingSaves--;
                       }
                     },
                     showSelectedIcon: false,

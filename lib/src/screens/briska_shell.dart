@@ -1,5 +1,7 @@
 part of '../briska_app.dart';
 
+class _StaleSettingsOperation implements Exception {}
+
 class BriskaShell extends StatefulWidget {
   const BriskaShell({
     this.themeMode = ThemeMode.system,
@@ -48,7 +50,6 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   bool _startupDataIsCorrupt = false;
   bool _restoreRecoveryRequired = false;
   bool _restoreInProgress = false;
-  Future<void> _preferencesSaveQueue = Future<void>.value();
   Future<void> _entryOperationQueue = Future<void>.value();
   int _entryDataGeneration = 0;
   int _preferencesSaveRevision = 0;
@@ -319,9 +320,11 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     if (confirmed != true) return;
     await LocalStorage.resetLocalData();
     _entryDataGeneration++;
+    _preferencesSaveRevision++;
     if (!mounted) return;
     setState(() {
       _preferences = const AppSettings();
+      CurrencyFormatter.current = _preferences.currency;
       _entries = [];
       _exportRecords = [];
       _startupError = null;
@@ -497,26 +500,52 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _savePreferences(AppSettings settings) async {
-    final revision = ++_preferencesSaveRevision;
-    final operation = _preferencesSaveQueue.then(
-      (_) => LocalStorage.saveSettings(settings),
-    );
-    _preferencesSaveQueue = operation.then<void>((_) {}, onError: (_, _) {});
-    await operation;
-    if (!mounted || revision != _preferencesSaveRevision) return;
-    setState(() => _preferences = settings);
-    CurrencyFormatter.current = settings.currency;
+  Future<void> _savePreferences(
+    AppSettings settings,
+    int generation, {
+    String? themeMode,
+  }) {
+    _preferencesSaveRevision++;
+    return _queueEntryOperation(() async {
+      if (!mounted ||
+          _restoreRecoveryRequired ||
+          generation != _entryDataGeneration) {
+        throw _StaleSettingsOperation();
+      }
+      if (themeMode != null) {
+        settings = _preferences.copyWith(themeMode: themeMode);
+      }
+      await LocalStorage.saveSettings(settings);
+      if (!mounted) return;
+      // Commit every successful write: backups and failed later saves must see
+      // the last durable settings. Storage and UI commits share the queue.
+      setState(() => _preferences = settings);
+      CurrencyFormatter.current = settings.currency;
+      widget.onThemeModeChanged?.call(
+        themeModeFromSettings(settings.themeMode),
+      );
+    });
   }
 
-  Future<void> _savePreferencesSilently(AppSettings settings) async {
+  Future<void> _savePreferencesWithFeedback(
+    AppSettings settings,
+    int generation,
+  ) async {
+    final operation = _savePreferences(settings, generation);
+    final revision = _preferencesSaveRevision;
     try {
-      await _savePreferences(settings);
-    } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('settings save failed: $error');
-        debugPrintStack(stackTrace: stackTrace);
+      await operation;
+    } catch (error) {
+      if (!mounted ||
+          generation != _entryDataGeneration ||
+          revision != _preferencesSaveRevision) {
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save settings. Please try again.'),
+        ),
+      );
     }
   }
 
@@ -627,9 +656,11 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         exportRecords: preview.data.exportRecords,
       );
       _entryDataGeneration++;
+      _preferencesSaveRevision++;
       if (!mounted) return;
       setState(() {
         _preferences = preview.data.settings;
+        CurrencyFormatter.current = _preferences.currency;
         _entries = List.of(preview.data.workEntries);
         _exportRecords = List.of(preview.data.exportRecords);
         _index = 0;
@@ -772,15 +803,11 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       );
     }
     if (!_preferences.onboardingCompleted) {
+      final onboardingGeneration = _entryDataGeneration;
       return OnboardingScreen(
         initialSettings: _preferences,
-        onComplete: (settings) {
-          setState(() => _preferences = settings);
-          _savePreferencesSilently(settings);
-          widget.onThemeModeChanged?.call(
-            themeModeFromSettings(settings.themeMode),
-          );
-        },
+        onComplete: (settings) =>
+            _savePreferences(settings, onboardingGeneration),
       );
     }
     if (_consentGateState == AdvertisingConsentGateState.waiting) {
@@ -820,10 +847,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         companyName: _preferences.companyName,
         settings: _preferences,
         records: _exportRecords,
-        onPreferencesChanged: (value) {
-          setState(() => _preferences = value);
-          _savePreferencesSilently(value);
-        },
+        onPreferencesChanged: (value) =>
+            _savePreferencesWithFeedback(value, exportGeneration),
         onAdd: (record) =>
             _changeExportRecord(record, exportGeneration, add: true),
         onDelete: (record) =>
@@ -831,6 +856,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         onUpdate: (record) => _changeExportRecord(record, exportGeneration),
       ),
       SettingsScreen(
+        key: ValueKey(_entryDataGeneration),
         preferences: _preferences,
         lockConfig: _lockConfig,
         onCreateBackup: _createBackup,
@@ -840,13 +866,17 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         onShowAbout: () => Navigator.of(
           context,
         ).push(_BriskaPageRoute(child: const AboutBriskaScreen())),
-        onPreferencesChanged: _savePreferences,
+        onPreferencesChanged: (value) =>
+            _savePreferences(value, exportGeneration),
         onThemeModeChanged: (mode) async {
           final value = _preferences.copyWith(
             themeMode: themeModeToSettings(mode),
           );
-          await _savePreferences(value);
-          widget.onThemeModeChanged?.call(mode);
+          await _savePreferences(
+            value,
+            exportGeneration,
+            themeMode: themeModeToSettings(mode),
+          );
         },
         deviceAuthenticationAvailabilityChecker:
             widget.deviceAuthenticationAvailabilityChecker,

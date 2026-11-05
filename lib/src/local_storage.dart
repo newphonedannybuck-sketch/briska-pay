@@ -148,7 +148,12 @@ class LocalStorage {
     return settings;
   }
 
+  @visibleForTesting
+  static Future<void> Function(AppSettings)? saveSettingsOverride;
+
   static Future<void> saveSettings(AppSettings settings) {
+    final override = saveSettingsOverride;
+    if (override != null) return override(settings);
     return _preferences.setString(_settingsKey, jsonEncode(settings.toJson()));
   }
 

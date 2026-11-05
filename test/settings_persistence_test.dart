@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:briska/src/app_lock_service.dart';
 import 'package:briska/src/briska_app.dart';
 import 'package:briska/src/models.dart';
@@ -160,5 +161,65 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Could not update theme.'), findsOneWidget);
     expect(find.text('THEME_PLATFORM_DETAIL'), findsNothing);
+  });
+  testWidgets('rapid schedule selections retain both changes before saving', (
+    tester,
+  ) async {
+    final values = <AppSettings>[];
+    final completions = <Completer<void>>[];
+    await tester.pumpWidget(
+      _settings(
+        savePreferences: (value) {
+          values.add(value);
+          final completion = Completer<void>();
+          completions.add(completion);
+          return completion.future;
+        },
+      ),
+    );
+    await tester.ensureVisible(find.text('Pay period type'));
+    await tester.tap(find.text(lastFridayPayFrequency).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(calendarMonthlyPayFrequency).last);
+    await tester.pumpAndSettle();
+    expect(values, hasLength(1));
+    await tester.ensureVisible(find.text('Payday rule'));
+    await tester.tap(find.text(paydayOnPeriodEnd).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(paydayFixedDayFollowingMonth).last);
+    await tester.pumpAndSettle();
+    expect(values, hasLength(2));
+    expect(values.last.payFrequency, calendarMonthlyPayFrequency);
+    expect(values.last.paydayRule, paydayFixedDayFollowingMonth);
+    completions.first.complete();
+    await tester.pump();
+    expect(find.text('Pay schedule updated.'), findsNothing);
+    completions.last.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Pay schedule updated.'), findsOneWidget);
+  });
+
+  testWidgets('save completion preserves text edited while write is pending', (
+    tester,
+  ) async {
+    final completion = Completer<void>();
+    final values = <AppSettings>[];
+    await tester.pumpWidget(
+      _settings(
+        savePreferences: (value) {
+          values.add(value);
+          return values.length == 1 ? completion.future : Future<void>.value();
+        },
+      ),
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'First');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.enterText(find.byType(TextFormField).at(1), 'Newer');
+    completion.complete();
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(values.last.companyName, 'Newer');
   });
 }

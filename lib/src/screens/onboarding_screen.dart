@@ -8,7 +8,7 @@ class OnboardingScreen extends StatefulWidget {
   });
 
   final AppSettings initialSettings;
-  final ValueChanged<AppSettings> onComplete;
+  final FutureOr<void> Function(AppSettings) onComplete;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -270,7 +270,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  void _finish() {
+  Future<void> _finish() async {
     final name = _name.text.trim();
     final companyName = _companyName.text.trim();
     final primaryLabel = _primaryRateLabel.text.trim();
@@ -295,22 +295,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
       return;
     }
-    widget.onComplete(
-      widget.initialSettings.copyWith(
-        fullName: name,
-        companyName: companyName,
-        onboardingCompleted: true,
-        primaryRateLabel: primaryLabel,
-        primaryRateValue: home,
-        secondaryRateLabel: secondaryLabel,
-        secondaryRateValue: away,
-        payFrequency: _frequency,
-        payDay: _payDay,
-        payPeriodAnchorDate: _payPeriodAnchorDate,
-        payScheduleAnchorPrompted: _payPeriodAnchorDate.isNotEmpty,
-        currency: _currency,
-      ),
-    );
+    try {
+      await widget.onComplete(
+        widget.initialSettings.copyWith(
+          fullName: name,
+          companyName: companyName,
+          onboardingCompleted: true,
+          primaryRateLabel: primaryLabel,
+          primaryRateValue: home,
+          secondaryRateLabel: secondaryLabel,
+          secondaryRateValue: away,
+          payFrequency: _frequency,
+          payDay: _payDay,
+          payPeriodAnchorDate: _payPeriodAnchorDate,
+          payScheduleAnchorPrompted: _payPeriodAnchorDate.isNotEmpty,
+          currency: _currency,
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not save settings. Please try again.');
+      }
+    }
   }
 
   Future<void> _choosePayPeriodAnchorDate() async {
@@ -416,4 +422,3 @@ class _CurrencyControllerFieldState extends State<_CurrencyControllerField> {
     ],
   );
 }
-
