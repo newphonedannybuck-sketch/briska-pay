@@ -163,6 +163,22 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
   late final TextEditingController _siteController;
   late final TextEditingController _notesController;
   late final TextEditingController _deductionReasonController;
+  late final TextEditingController _holidayHoursController;
+  bool get _isBankHoliday =>
+      _entryType == 'bankHoliday' || _entryType == 'BankHoliday';
+  bool get _hasHolidayHours => _entryType == 'Holiday' || _isBankHoliday;
+  double? get _holidayHours {
+    final text = _holidayHoursController.text.trim();
+    return text.isEmpty ? null : double.tryParse(text) ?? double.nan;
+  }
+
+  String? get _hoursError {
+    final hours = _holidayHours;
+    return hours != null && (!hours.isFinite || hours < 0)
+        ? 'Enter valid hours of zero or more.'
+        : null;
+  }
+
   String? _siteError;
   bool _isSaving = false;
 
@@ -194,14 +210,19 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     _deductionReasonController = TextEditingController(
       text: entry?.deductionReason ?? '',
     );
+    _holidayHoursController = TextEditingController(
+      text: entry != null && _hasHolidayHours
+          ? entry.totalHours.toString()
+          : '',
+    );
     if (_entryType == 'Holiday') {
       _rateType = 'primary';
-      _selectedRate = preferences.primaryRateValue;
+      _selectedRate = entry?.hourlyRateUsed ?? preferences.primaryRateValue;
       _appliedAllowance = 0;
       _allowanceHasValue = false;
-    } else if (_entryType == 'bankHoliday') {
+    } else if (_isBankHoliday) {
       _rateType = 'primary';
-      _selectedRate = _isPaidBankHoliday ? preferences.primaryRateValue : 0;
+      _selectedRate = entry?.hourlyRateUsed ?? preferences.primaryRateValue;
       _appliedAllowance = 0;
       _allowanceHasValue = false;
     } else if (_entryType == 'UnpaidDayOff' || _entryType == 'SickDay') {
@@ -216,6 +237,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
 
   @override
   void dispose() {
+    _holidayHoursController.dispose();
     _siteController.dispose();
     _notesController.dispose();
     _deductionReasonController.dispose();
@@ -234,10 +256,15 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     isPaidSickDay: _isPaidSickDay,
     isPaidBankHoliday: _isPaidBankHoliday,
     deductionAmount: _deductionAmount,
+    holidayHours: _hasHolidayHours ? _holidayHours : null,
   );
 
   void _selectEntryType(String value) {
+    if (_entryType == value || (_isBankHoliday && value == 'bankHoliday')) {
+      return;
+    }
     setState(() {
+      _holidayHoursController.clear();
       _entryType = value;
       if (value == 'Holiday') {
         _rateType = 'primary';
@@ -355,6 +382,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
         setState(() {
           _editingEntryId = existing.id;
           _entryType = existing.entryType;
+          _holidayHoursController.text = _hasHolidayHours
+              ? existing.totalHours.toString()
+              : '';
           _isPaidSickDay = existing.isPaidSickDay;
           _isPaidBankHoliday = existing.isPaidBankHoliday;
           _rateType = existing.rateType;
@@ -480,7 +510,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             ),
                           ].map((option) {
                             final selected =
-                                _entryType == option.$1.storageValue;
+                                _entryType == option.$1.storageValue ||
+                                (_isBankHoliday &&
+                                    option.$1 == EntryType.bankHoliday);
                             return ChoiceChip(
                               key: ValueKey('day-type-${option.$1.name}'),
                               selected: selected,
@@ -706,6 +738,24 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             ),
                             const SizedBox(height: 22),
                           ],
+                          if (_hasHolidayHours) ...[
+                            const FieldLabel('Hours (optional)'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              key: const ValueKey('holiday-hours-field'),
+                              controller: _holidayHoursController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: InputDecoration(
+                                hintText: 'Enter hours (optional)',
+                                errorText: _hoursError,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           if (_entryType == 'Holiday') ...[
                             Container(
                               width: double.infinity,
@@ -720,7 +770,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                 children: [
                                   _CalculationLine(
                                     label: 'Holiday hours',
-                                    value: formatHoursLabel(8),
+                                    value: formatHoursLabel(
+                                      _calculation.totalHours,
+                                    ),
                                     emphasize: true,
                                   ),
                                   const SizedBox(height: 8),
@@ -799,7 +851,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             ),
                             const SizedBox(height: 18),
                           ],
-                          if (_entryType == 'bankHoliday') ...[
+                          if (_isBankHoliday) ...[
                             const FieldLabel('Pay Status'),
                             const SizedBox(height: 9),
                             SizedBox(
@@ -819,9 +871,6 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                 onSelectionChanged: (values) => setState(() {
                                   _isPaidBankHoliday = values.first;
                                   _rateType = 'primary';
-                                  _selectedRate = _isPaidBankHoliday
-                                      ? widget.preferences.primaryRateValue
-                                      : 0;
                                 }),
                                 showSelectedIcon: false,
                               ),
@@ -829,9 +878,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             const SizedBox(height: 16),
                             _CalculationLine(
                               label: 'Bank Holiday',
-                              value: _isPaidBankHoliday
-                                  ? 'Paid · 8 hours'
-                                  : 'Unpaid · 0 hours',
+                              value: _isPaidBankHoliday ? 'Paid' : 'Unpaid',
                               emphasize: true,
                             ),
                             if (_isPaidBankHoliday) ...[

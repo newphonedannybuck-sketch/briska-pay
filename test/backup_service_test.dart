@@ -101,7 +101,12 @@ void main() {
       ];
       for (final entry in entries) {
         final fresh = WorkCalculator.recalculateEntry(entry);
-        expect(fresh.totalHours, isNot(entry.totalHours));
+        expect(
+          fresh.totalHours,
+          entry.entryType == 'WorkDay'
+              ? isNot(entry.totalHours)
+              : entry.totalHours,
+        );
         expect(fresh.wages, isNot(entry.wages));
         expect(fresh.totalPay, isNot(entry.totalPay));
       }

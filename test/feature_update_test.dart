@@ -29,6 +29,7 @@ WorkEntry _entry({
     deductionAmount: deduction,
     entryType: type.storageValue,
     isPaidBankHoliday: paidBankHoliday,
+    holidayHours: paidBankHoliday ? 8 : 0,
   );
   return WorkEntry(
     id: 'entry',
@@ -153,7 +154,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('day-type-bankHoliday')));
     await tester.pumpAndSettle();
     expect(find.text('Pay Status'), findsOneWidget);
-    expect(find.text('Paid · 8 hours'), findsOneWidget);
+    expect(find.text('Paid'), findsNWidgets(2));
     expect(find.text('Site/job name'), findsNothing);
     expect(find.text('Start time'), findsNothing);
   });

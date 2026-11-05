@@ -71,6 +71,7 @@ abstract final class WorkCalculator {
     bool isPaidSickDay = false,
     bool isPaidBankHoliday = true,
     double deductionAmount = 0,
+    double? holidayHours,
   }) {
     if (hourlyRate < 0) {
       return const WorkCalculation(
@@ -119,21 +120,20 @@ abstract final class WorkCalculator {
         totalPay: wages + jobUplift,
       );
     }
-    if (entryType == 'bankHoliday' || entryType == 'BankHoliday') {
-      if (!isPaidBankHoliday) {
-        return WorkCalculation(totalHours: 0, wages: 0, totalPay: jobUplift);
+    if (entryType == 'Holiday' ||
+        entryType == 'bankHoliday' ||
+        entryType == 'BankHoliday') {
+      final totalHours = holidayHours ?? 0;
+      if (!totalHours.isFinite || totalHours < 0) {
+        return const WorkCalculation(
+          totalHours: 0,
+          wages: 0,
+          totalPay: 0,
+          error: 'Enter valid hours of zero or more.',
+        );
       }
-      const totalHours = 8.0;
-      final wages = totalHours * hourlyRate;
-      return WorkCalculation(
-        totalHours: totalHours,
-        wages: wages,
-        totalPay: wages + jobUplift,
-      );
-    }
-    if (entryType == 'Holiday') {
-      const totalHours = 8.0;
-      final wages = totalHours * hourlyRate;
+      final paid = entryType == 'Holiday' || isPaidBankHoliday;
+      final wages = paid ? totalHours * hourlyRate : 0.0;
       return WorkCalculation(
         totalHours: totalHours,
         wages: wages,
@@ -243,6 +243,7 @@ abstract final class WorkCalculator {
       isPaidSickDay: entry.isPaidSickDay,
       isPaidBankHoliday: entry.isPaidBankHoliday,
       deductionAmount: entry.deductionAmount,
+      holidayHours: entry.totalHours,
     );
     if (!result.isValid) return _zeroInvalidEntry(entry);
     return WorkEntry(

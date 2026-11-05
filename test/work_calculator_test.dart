@@ -48,6 +48,7 @@ void main() {
       dailyAllowance: 25,
       jobUplift: 10,
       entryType: 'Holiday',
+      holidayHours: 8,
     );
     final unpaid = WorkCalculator.calculate(
       startTime: '',
@@ -161,7 +162,7 @@ void main() {
     expect(repaired.totalPay, 320);
   });
 
-  test('Holiday uses fixed 8 hours, home rate and optional uplift', () {
+  test('Holiday uses entered 8 hours, home rate and optional uplift', () {
     final result = WorkCalculator.calculate(
       startTime: '',
       finishTime: '',
@@ -171,6 +172,7 @@ void main() {
       dailyAllowance: 0,
       jobUplift: 50,
       entryType: 'Holiday',
+      holidayHours: 8,
     );
 
     expect(result.isValid, isTrue);
