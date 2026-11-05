@@ -7,6 +7,7 @@ class AddWorkDayScreen extends StatefulWidget {
     required this.onSave,
     this.initialEntry,
     this.initialDate,
+    this.securityDismissal,
     super.key,
   });
 
@@ -14,6 +15,7 @@ class AddWorkDayScreen extends StatefulWidget {
   final List<WorkEntry> savedEntries;
   final WorkEntry? initialEntry;
   final DateTime? initialDate;
+  final Listenable? securityDismissal;
   final Future<bool> Function(WorkEntry entry) onSave;
 
   @override
@@ -181,6 +183,95 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
 
   String? _siteError;
   bool _isSaving = false;
+  bool _dirty = false;
+  bool _confirmingDiscard = false;
+  bool _closed = false;
+  bool _securityDismissed = false;
+  late Object _initialFormState;
+
+  bool get _editorActive => mounted && !_closed && !_securityDismissed;
+
+  // Compare only form values, never focus, validation, or calculated totals.
+  // Normalize values that are saved equivalently without losing invalid input.
+  Object get _formState => (
+    date: (_date.year, _date.month, _date.day),
+    entryType: _isBankHoliday ? 'bankHoliday' : _entryType,
+    site: _siteController.text.trim(),
+    start: WorkCalculator.normalizeTime(_startTime) ?? _startTime,
+    finish: WorkCalculator.normalizeTime(_finishTime) ?? _finishTime,
+    breakMinutes: _breakMinutes,
+    rateType: _rateType,
+    rate: _selectedRate,
+    allowance: _appliedAllowance,
+    allowanceEntered: _allowanceHasValue,
+    uplift: _jobUplift,
+    deduction: _deductionAmount,
+    deductionReason: _deductionReasonController.text.trim(),
+    holidayHours:
+        double.tryParse(_holidayHoursController.text.trim())?.toString() ??
+        _holidayHoursController.text.trim(),
+    paidSick: _isPaidSickDay,
+    paidBankHoliday: _isPaidBankHoliday,
+    notes: _notesController.text.trim(),
+  );
+
+  void _textChanged() {
+    // Controller listeners also run for selection/focus changes. Only rebuild
+    // when the navigation permission actually changes.
+    if (!_editorActive) return;
+    final dirty = _formState != _initialFormState;
+    if (dirty != _dirty) setState(() => _dirty = dirty);
+  }
+
+  void _dismissForSecurity() {
+    if (!mounted) return;
+    setState(() => _securityDismissed = true);
+  }
+
+  Future<void> _confirmDiscard() async {
+    if (!_editorActive || _isSaving || _confirmingDiscard) return;
+    _confirmingDiscard = true;
+    try {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Discard unsaved changes?'),
+          content: const Text('Your changes to this day have not been saved.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (_editorActive &&
+                    ModalRoute.of(dialogContext)?.isCurrent == true) {
+                  Navigator.pop(dialogContext, false);
+                }
+              },
+              child: const Text('Keep Editing'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (_editorActive &&
+                    ModalRoute.of(dialogContext)?.isCurrent == true) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Discard Changes'),
+            ),
+          ],
+        ),
+      );
+      if (!_editorActive || _isSaving || discard != true) return;
+      _closeEditor();
+    } finally {
+      _confirmingDiscard = false;
+    }
+  }
+
+  void _closeEditor() {
+    if (!_editorActive || ModalRoute.of(context)?.isCurrent != true) return;
+    _closed = true;
+    // Explicit programmatic completion; ordinary Back uses maybePop/PopScope.
+    Navigator.of(context).pop();
+  }
 
   @override
   void initState() {
@@ -233,10 +324,30 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       _appliedAllowance = 0;
       _allowanceHasValue = false;
     }
+    _initialFormState = _formState;
+    for (final controller in [
+      _siteController,
+      _notesController,
+      _deductionReasonController,
+      _holidayHoursController,
+    ]) {
+      controller.addListener(_textChanged);
+    }
+    widget.securityDismissal?.addListener(_dismissForSecurity);
+  }
+
+  @override
+  void didUpdateWidget(AddWorkDayScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.securityDismissal != widget.securityDismissal) {
+      oldWidget.securityDismissal?.removeListener(_dismissForSecurity);
+      widget.securityDismissal?.addListener(_dismissForSecurity);
+    }
   }
 
   @override
   void dispose() {
+    widget.securityDismissal?.removeListener(_dismissForSecurity);
     _holidayHoursController.dispose();
     _siteController.dispose();
     _notesController.dispose();
@@ -309,7 +420,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
   }
 
   Future<void> _save() async {
-    if (_isSaving) return;
+    if (!_editorActive || _isSaving || _confirmingDiscard) return;
     setState(() => _isSaving = true);
     var saved = false;
     try {
@@ -317,13 +428,13 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     } catch (error, stackTrace) {
       debugPrint('entry submission failed: $error');
       if (kDebugMode) debugPrintStack(stackTrace: stackTrace);
-      if (mounted) {
+      if (mounted && _editorActive) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not save this day.')),
         );
       }
     } finally {
-      if (mounted && !saved) setState(() => _isSaving = false);
+      if (_editorActive && !saved) setState(() => _isSaving = false);
     }
   }
 
@@ -374,7 +485,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
           ],
         ),
       );
-      if (!mounted || choice == null || choice == _DuplicateChoice.cancel) {
+      if (!_editorActive ||
+          choice == null ||
+          choice == _DuplicateChoice.cancel) {
         return false;
       }
       if (choice == _DuplicateChoice.editExisting) {
@@ -400,6 +513,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
           _date = existing.date;
           _siteController.text = existing.siteName;
           _notesController.text = existing.notes;
+          _initialFormState = _formState;
         });
         return false;
       }
@@ -430,20 +544,22 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       deductionReason: _deductionReasonController.text.trim(),
     );
     final saved = await widget.onSave(entry);
-    if (!mounted || !saved) return false;
+    if (!mounted || !_editorActive || !saved) return false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(_editingEntryId == null ? 'Day saved.' : 'Day updated.'),
       ),
     );
-    Navigator.of(context).pop();
+    _closeEditor();
     return true;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_securityDismissed) return const SizedBox.shrink();
+    _dirty = _formState != _initialFormState;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: AppBar(
         title: Text(_editingEntryId == null ? 'Add Day' : 'Edit Day'),
         centerTitle: false,
@@ -539,7 +655,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2100),
                         );
-                        if (value != null) setState(() => _date = value);
+                        if (_editorActive && value != null) {
+                          setState(() => _date = value);
+                        }
                       },
                     ),
                     const SizedBox(height: 16),
@@ -964,6 +1082,20 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
         keyboardOpen: keyboardOpen,
         onSave: _isSaving ? null : _save,
         label: _editingEntryId == null ? 'Save Entry' : 'Update Entry',
+      ),
+    );
+    return PopScope<void>(
+      canPop: !_isSaving && !_dirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          _closed = true;
+          return;
+        }
+        unawaited(_confirmDiscard());
+      },
+      child: AbsorbPointer(
+        absorbing: _isSaving,
+        child: ExcludeFocus(excluding: _isSaving, child: scaffold),
       ),
     );
   }

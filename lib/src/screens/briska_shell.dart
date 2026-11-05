@@ -49,6 +49,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   late bool _storedStateLoaded;
   DateTime? _backgroundedAt;
   int _lockSession = 0;
+  final _editorSecurityDismissal = ValueNotifier<int>(0);
   bool _deviceAuthenticationActive = false;
   bool _foreground = true;
   int? _pendingUnlockSession;
@@ -106,6 +107,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _editorSecurityDismissal.dispose();
     for (final timer in _optionalOperationTimers) {
       timer.cancel();
     }
@@ -207,7 +209,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         _backgroundedAt = null;
         if (_lockState != AppLockInitializationState.locked &&
             (elapsed < 0 || elapsed >= _lockConfig.lockAfterSeconds)) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          _dismissRoutesForAppLock();
           setState(() {
             _lockSession++;
             _lockState = AppLockInitializationState.locked;
@@ -217,6 +219,22 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       final pending = _pendingUnlockSession;
       _pendingUnlockSession = null;
       if (pending != null) _handleUnlocked(pending);
+    }
+  }
+
+  void _dismissRoutesForAppLock() {
+    _editorSecurityDismissal.value++;
+    final navigator = Navigator.of(context);
+    // Remove rather than animate away: neither PopScope nor an open dialog
+    // may delay security dismissal or leave sensitive content on screen.
+    while (true) {
+      Route<dynamic>? top;
+      navigator.popUntil((route) {
+        top = route;
+        return true;
+      });
+      if (top == null || top!.isFirst) return;
+      navigator.removeRoute(top!);
     }
   }
 
@@ -375,6 +393,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           initialEntry: entry,
           initialDate: initialDate,
           onSave: _saveEntry,
+          securityDismissal: _editorSecurityDismissal,
         ),
       ),
     );
