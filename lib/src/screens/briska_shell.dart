@@ -17,6 +17,7 @@ class BriskaShell extends StatefulWidget {
     this.deviceAuthenticationAvailabilityChecker,
     this.adsConsentCoordinator,
     this.adsService,
+    this.exportActionOverrides,
     super.key,
   });
 
@@ -33,6 +34,7 @@ class BriskaShell extends StatefulWidget {
   final Future<bool> Function()? deviceAuthenticationAvailabilityChecker;
   final AdsConsentCoordinator? adsConsentCoordinator;
   final AdsService? adsService;
+  final ExportActionOverrides? exportActionOverrides;
 
   @override
   State<BriskaShell> createState() => _BriskaShellState();
@@ -893,16 +895,25 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
     // Keep callbacks held by dialogs/file operations tied to their original data.
     final exportGeneration = _entryDataGeneration;
+    final session = _lockSession;
+    // Async completions can run between a navigation/security change and the
+    // next build. Check live shell state as well as the child's active flag.
+    bool canPresentTab(int index) =>
+        mounted &&
+        _lockState == AppLockInitializationState.unlocked &&
+        _lockSession == session &&
+        _entryDataGeneration == exportGeneration &&
+        _index == index;
     final screens = [
       HomeScreen(
         entries: _entries,
         settings: _preferences,
-        onViewEntries: () => setState(() => _index = 1),
+        onViewEntries: () => _selectTab(1),
         onAddEntry: _showAddDay,
-        onOpenCalendar: () => setState(() => _index = 1),
-        onOpenReports: () => setState(() => _index = 2),
-        onOpenExport: () => setState(() => _index = 3),
-        onConfigurePayday: () => setState(() => _index = 4),
+        onOpenCalendar: () => _selectTab(1),
+        onOpenReports: () => _selectTab(2),
+        onOpenExport: () => _selectTab(3),
+        onConfigurePayday: () => _selectTab(4),
         onEditEntry: _showAddDay,
       ),
       EntriesScreen(
@@ -914,6 +925,9 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       ),
       ProfessionalReportsScreen(entries: _entries, settings: _preferences),
       ExportScreen(
+        isActive: _index == 3,
+        canPresent: () => canPresentTab(3),
+        actionOverrides: widget.exportActionOverrides,
         entries: _entries,
         fullName: _preferences.fullName,
         companyName: _preferences.companyName,
@@ -928,6 +942,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         onUpdate: (record) => _changeExportRecord(record, exportGeneration),
       ),
       SettingsScreen(
+        isActive: _index == 4,
+        canPresent: () => canPresentTab(4),
         key: ValueKey(_entryDataGeneration),
         preferences: _preferences,
         lockConfig: _lockConfig,
@@ -965,28 +981,10 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       body: Column(
         children: [
           Expanded(
-            child: AnimatedSwitcher(
-              duration: BriskaDurations.emphasis,
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final reduceMotion = MediaQuery.disableAnimationsOf(context);
-                if (reduceMotion) return child;
-                return FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(
-                      begin: .985,
-                      end: 1,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey(_index),
-                child: screens[_index],
-              ),
+            child: _RetainedTabs(
+              key: ValueKey(_entryDataGeneration),
+              index: _index,
+              children: screens,
             ),
           ),
           if (_homeBannerEligible)
@@ -1018,7 +1016,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
             borderRadius: BorderRadius.circular(28),
             child: NavigationBar(
               selectedIndex: _index,
-              onDestinationSelected: (value) => setState(() => _index = value),
+              onDestinationSelected: _selectTab,
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.home_outlined, size: BriskaIcons.size),
@@ -1072,7 +1070,58 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         ),
       ),
     );
-    return scaffold;
+    return PopScope<void>(
+      canPop: _index == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && ModalRoute.of(context)?.isCurrent == true) {
+          _selectTab(0);
+        }
+      },
+      child: scaffold,
+    );
+  }
+
+  void _selectTab(int index) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _index = index);
+  }
+}
+
+// Owned by the unlocked branch: lock/recovery/onboarding disposes every tab.
+// A new data generation also discards drafts after successful restore/reset.
+class _RetainedTabs extends StatefulWidget {
+  const _RetainedTabs({required this.index, required this.children, super.key});
+  final int index;
+  final List<Widget> children;
+
+  @override
+  State<_RetainedTabs> createState() => _RetainedTabsState();
+}
+
+class _RetainedTabsState extends State<_RetainedTabs> {
+  final _visited = <int>{};
+
+  @override
+  Widget build(BuildContext context) {
+    _visited.add(widget.index);
+    return IndexedStack(
+      index: widget.index,
+      children: [
+        for (var i = 0; i < widget.children.length; i++)
+          TickerMode(
+            enabled: i == widget.index,
+            child: ExcludeFocus(
+              excluding: i != widget.index,
+              child: ExcludeSemantics(
+                excluding: i != widget.index,
+                child: _visited.contains(i)
+                    ? widget.children[i]
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

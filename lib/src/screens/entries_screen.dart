@@ -151,6 +151,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  key: ValueKey(_month),
                   isExpanded: true,
                   initialValue: _month,
                   decoration: const InputDecoration(

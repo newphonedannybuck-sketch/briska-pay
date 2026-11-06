@@ -14,6 +14,8 @@ class SettingsScreen extends StatefulWidget {
     required this.onPreferencesChanged,
     this.deviceAuthenticationAvailabilityChecker,
     this.showTesterTools,
+    this.isActive = true,
+    this.canPresent,
     this.privacyOptionsRequired = false,
     this.onShowAdvertisingPrivacyChoices,
     super.key,
@@ -29,6 +31,8 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback onShowAbout;
   final FutureOr<void> Function(AppSettings) onPreferencesChanged;
   final bool? showTesterTools;
+  final bool isActive;
+  final bool Function()? canPresent;
   final Future<bool> Function()? deviceAuthenticationAvailabilityChecker;
   final bool privacyOptionsRequired;
   final Future<void> Function()? onShowAdvertisingPrivacyChoices;
@@ -38,6 +42,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool get _canPresent =>
+      mounted &&
+      widget.isActive &&
+      widget.canPresent?.call() != false &&
+      ModalRoute.of(context)?.isCurrent != false;
   bool _anchorPromptShown = false;
   bool _securityBusy = false;
   int _currencyPickerRevision = 0;
@@ -48,6 +57,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _draftDirty = false;
   late AppSettings _draftPreferences;
   bool? _deviceAuthenticationAvailable;
+  final _invalidRateInputs = <String>{};
+
+  void _updateRate(String value, {required bool primary}) {
+    final key = primary ? 'primary' : 'secondary';
+    final parsed = value.trim().isEmpty ? 0.0 : double.tryParse(value);
+    if (parsed == null || !parsed.isFinite || parsed < 0) {
+      _invalidRateInputs.add(key);
+    } else {
+      _invalidRateInputs.remove(key);
+    }
+    _update(
+      primary
+          ? _draftPreferences.copyWith(primaryRateValue: parsed)
+          : _draftPreferences.copyWith(secondaryRateValue: parsed),
+    );
+  }
 
   @override
   void initState() {
@@ -87,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   });
 
   void _showSettingsFeedback(String message) {
-    if (!mounted) return;
+    if (!_canPresent) return;
     if (Scaffold.maybeOf(context) == null) return;
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
@@ -101,7 +126,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? successMessage,
     required String failureMessage,
   }) async {
-    if (value.primaryRateLabel.trim().isEmpty ||
+    if (_invalidRateInputs.isNotEmpty ||
+        value.primaryRateLabel.trim().isEmpty ||
         value.secondaryRateLabel.trim().isEmpty ||
         value.primaryRateLabel.trim().length > 24 ||
         value.secondaryRateLabel.trim().length > 24 ||
@@ -165,6 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _confirmCurrencyChange(CurrencyConfig currency) async {
+    if (!_canPresent) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -184,6 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+    if (!_canPresent) return;
     if (confirmed == true) {
       await _persist(
         _draftPreferences.copyWith(currency: currency),
@@ -198,12 +226,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final needsAnchor = requiresPayPeriodAnchor(_draftPreferences);
-    if (needsAnchor &&
+    if (_canPresent &&
+        needsAnchor &&
         !_draftPreferences.payScheduleAnchorPrompted &&
         !_anchorPromptShown) {
       _anchorPromptShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && requiresPayPeriodAnchor(_draftPreferences)) {
+        if (!mounted) return;
+        if (!_canPresent) {
+          _anchorPromptShown = false;
+          return;
+        }
+        if (requiresPayPeriodAnchor(_draftPreferences)) {
           _showAnchorPrompt();
         }
       });
@@ -334,13 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       prefixText: _currencyPrefix,
                       hintText: 'e.g. 20.00',
                     ),
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(
-                        primaryRateValue: value.trim().isEmpty
-                            ? 0
-                            : double.tryParse(value),
-                      ),
-                    ),
+                    onChanged: (value) => _updateRate(value, primary: true),
                     onFinished: () => _persist(
                       _draftPreferences,
                       successMessage: 'Pay rates updated.',
@@ -382,13 +410,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       prefixText: _currencyPrefix,
                       hintText: 'e.g. 25.00',
                     ),
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(
-                        secondaryRateValue: value.trim().isEmpty
-                            ? 0
-                            : double.tryParse(value),
-                      ),
-                    ),
+                    onChanged: (value) => _updateRate(value, primary: false),
                     onFinished: () => _persist(
                       _draftPreferences,
                       successMessage: 'Pay rates updated.',
@@ -612,7 +634,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               themeMode: previousTheme,
                             );
                             _draftDirty = wasDirty;
-                            _formRevision++;
+                            // Theme rollback must not recreate unrelated rate
+                            // fields and separate their text from validation.
                           });
                         }
                         _showSettingsFeedback('Could not update theme.');
@@ -1217,6 +1240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showAnchorPrompt() async {
+    if (!_canPresent) return;
     final chooseNow = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1236,7 +1260,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-    if (!mounted) return;
+    if (!_canPresent) return;
     if (chooseNow == true) {
       await _chooseAnchorDate();
     } else {
@@ -1248,6 +1272,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _chooseAnchorDate() async {
+    if (!_canPresent) return;
     final current =
         _parseSettingsDate(_draftPreferences.payPeriodAnchorDate) ??
         DateTime.now();
@@ -1257,7 +1282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked == null) return;
+    if (picked == null || !_canPresent) return;
     _updatePaySchedule(
       _draftPreferences.copyWith(
         payPeriodAnchorDate: _settingsDateValue(picked),

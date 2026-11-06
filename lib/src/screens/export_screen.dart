@@ -12,6 +12,7 @@ class ExportActionOverrides {
     this.print,
     this.rename,
     this.deleteFile,
+    this.create,
   });
 
   final Future<bool> Function(ExportedFileRecord record)? open;
@@ -19,6 +20,12 @@ class ExportActionOverrides {
   final Future<void> Function(ExportedFileRecord record)? print;
   final Future<void> Function(File source, String targetPath)? rename;
   final Future<void> Function(File file)? deleteFile;
+  final Future<ExportFileResult> Function(
+    List<WorkEntry> entries,
+    AppSettings settings,
+    ExportFormat format,
+  )?
+  create;
 }
 
 class ExportScreen extends StatefulWidget {
@@ -34,6 +41,8 @@ class ExportScreen extends StatefulWidget {
     required this.onUpdate,
     this.libraryOnly = false,
     this.actionOverrides,
+    this.isActive = true,
+    this.canPresent,
     super.key,
   });
 
@@ -48,12 +57,33 @@ class ExportScreen extends StatefulWidget {
   final Future<bool> Function(ExportedFileRecord) onUpdate;
   final bool libraryOnly;
   final ExportActionOverrides? actionOverrides;
+  final bool isActive;
+  final bool Function()? canPresent;
 
   @override
   State<ExportScreen> createState() => _ExportScreenState();
 }
 
 class _ExportScreenState extends State<ExportScreen> {
+  ExportedFileRecord? _pendingCompletion;
+  String? _pendingMessage;
+
+  bool get _canPresent =>
+      mounted &&
+      widget.isActive &&
+      widget.canPresent?.call() != false &&
+      ModalRoute.of(context)?.isCurrent != false;
+
+  void _presentPending() {
+    if (!_canPresent) return;
+    final message = _pendingMessage;
+    _pendingMessage = null;
+    if (message != null) _message(context, message);
+    final record = _pendingCompletion;
+    _pendingCompletion = null;
+    if (record != null) _showExportCompleteActions(context, record);
+  }
+
   late final ValueNotifier<List<ExportedFileRecord>> _libraryRecords;
   // Avoid overlapping file operations or toggles based on the same stale card.
   final Set<String> _busyRecords = {};
@@ -84,6 +114,10 @@ class _ExportScreenState extends State<ExportScreen> {
 
   void _message(BuildContext context, String message) {
     if (!context.mounted) return;
+    if (!_canPresent) {
+      _pendingMessage = message;
+      return;
+    }
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -130,6 +164,9 @@ class _ExportScreenState extends State<ExportScreen> {
   @override
   void didUpdateWidget(covariant ExportScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _presentPending());
+    }
     // The library route is a sibling of this screen, so notify after this build.
     if (oldWidget.records != widget.records) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -536,8 +573,8 @@ class _ExportScreenState extends State<ExportScreen> {
     );
   }
 
-  void _openExportLibrary(BuildContext context) {
-    Navigator.of(context).push(
+  Future<void> _openExportLibrary(BuildContext context) async {
+    await Navigator.of(context).push(
       _BriskaPageRoute(
         child: ValueListenableBuilder<List<ExportedFileRecord>>(
           valueListenable: _libraryRecords,
@@ -553,10 +590,12 @@ class _ExportScreenState extends State<ExportScreen> {
             onUpdate: widget.onUpdate,
             libraryOnly: true,
             actionOverrides: widget.actionOverrides,
+            canPresent: widget.canPresent,
           ),
         ),
       ),
     );
+    _presentPending();
   }
 
   Widget _buildExportLibrary(BuildContext context) => Scaffold(
@@ -708,6 +747,7 @@ class _ExportScreenState extends State<ExportScreen> {
     List<WorkEntry> entries,
     String periodLabel,
   ) async {
+    if (_isExporting || !_canPresent) return;
     final range = _range;
     if (!_fileNameEdited && range != null) {
       _fileNameController.text = _suggestedFilename(range, DateTime.now());
@@ -814,6 +854,11 @@ class _ExportScreenState extends State<ExportScreen> {
     ExportFormat format,
   ) async {
     final add = widget.onAdd;
+    final settings = widget.settings;
+    final reportType = _reportType;
+    final rangeType = _rangeType;
+    final range = _range;
+    exportEntries = List.of(exportEntries);
     try {
       final now = DateTime.now();
       final result = await _runExport(
@@ -823,7 +868,6 @@ class _ExportScreenState extends State<ExportScreen> {
         fileNameLabel: fileNameLabel,
         generatedAt: now,
       );
-      if (!context.mounted) return;
       final summary = WorkCalculator.summarize(exportEntries);
       final record = ExportedFileRecord(
         id: now.microsecondsSinceEpoch.toString(),
@@ -836,12 +880,12 @@ class _ExportScreenState extends State<ExportScreen> {
         totalHours: summary.totalHours,
         totalPay: summary.totalExpectedPay,
         fileSize: result.fileSize,
-        reportType: _reportType.label,
-        dateRangeType: _rangeType.name,
-        startDate: _range?.start,
-        endDate: _range?.end,
-        currencyCode: widget.settings.currency.code,
-        currencySymbol: widget.settings.currency.symbol,
+        reportType: reportType.label,
+        dateRangeType: rangeType.name,
+        startDate: range?.start,
+        endDate: range?.end,
+        currencyCode: settings.currency.code,
+        currencySymbol: settings.currency.symbol,
       );
       if (!await _persist(add, record)) {
         if (context.mounted) {
@@ -853,13 +897,12 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
       if (!context.mounted) return;
-      await _showExportCompleteActions(context, record);
+      _pendingCompletion = record;
+      _presentPending();
     } catch (error) {
       if (!context.mounted) return;
       if (kDebugMode) debugPrint('Export failed: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(exportCreationFailureMessage(error))),
-      );
+      _message(context, exportCreationFailureMessage(error));
     }
   }
 
@@ -870,31 +913,36 @@ class _ExportScreenState extends State<ExportScreen> {
     required String fileNameLabel,
     required DateTime generatedAt,
   }) async {
+    // Capture before the first await, including PDF asset loading. Retained
+    // screens can receive new settings while the original file is generated.
+    final snapshot = widget;
+    final create = snapshot.actionOverrides?.create;
+    if (create != null) return create(exportEntries, snapshot.settings, format);
     return switch (format) {
       ExportFormat.excel => ExcelExportService.export(
         exportEntries,
-        fullName: widget.fullName,
-        companyName: widget.companyName,
+        fullName: snapshot.fullName,
+        companyName: snapshot.companyName,
         periodLabel: periodLabel,
         fileNameLabel: fileNameLabel,
-        currency: widget.settings.currency,
-        primaryRateLabel: widget.settings.labelForRate('primary'),
-        secondaryRateLabel: widget.settings.labelForRate('secondary'),
+        currency: snapshot.settings.currency,
+        primaryRateLabel: snapshot.settings.labelForRate('primary'),
+        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
       ),
       ExportFormat.csv => CsvExportService.export(
         exportEntries,
-        fullName: widget.fullName,
-        companyName: widget.companyName,
+        fullName: snapshot.fullName,
+        companyName: snapshot.companyName,
         periodLabel: periodLabel,
         fileNameLabel: fileNameLabel,
-        currency: widget.settings.currency,
-        primaryRateLabel: widget.settings.labelForRate('primary'),
-        secondaryRateLabel: widget.settings.labelForRate('secondary'),
+        currency: snapshot.settings.currency,
+        primaryRateLabel: snapshot.settings.labelForRate('primary'),
+        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
       ),
       ExportFormat.pdfTimesheet => PdfExportService.exportTimesheet(
         exportEntries,
-        fullName: widget.fullName,
-        companyName: widget.companyName,
+        fullName: snapshot.fullName,
+        companyName: snapshot.companyName,
         periodLabel: periodLabel,
         generatedAt: generatedAt,
         logoBytes: await _loadAssetBytes(
@@ -907,14 +955,14 @@ class _ExportScreenState extends State<ExportScreen> {
           'assets/fonts/Poppins-SemiBold.ttf',
         ),
         fileNameLabel: fileNameLabel,
-        currency: widget.settings.currency,
-        primaryRateLabel: widget.settings.labelForRate('primary'),
-        secondaryRateLabel: widget.settings.labelForRate('secondary'),
+        currency: snapshot.settings.currency,
+        primaryRateLabel: snapshot.settings.labelForRate('primary'),
+        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
       ),
       ExportFormat.pdfSummary => PdfExportService.exportSummary(
         exportEntries,
-        fullName: widget.fullName,
-        companyName: widget.companyName,
+        fullName: snapshot.fullName,
+        companyName: snapshot.companyName,
         periodLabel: periodLabel,
         generatedAt: generatedAt,
         logoBytes: await _loadAssetBytes(
@@ -927,9 +975,9 @@ class _ExportScreenState extends State<ExportScreen> {
           'assets/fonts/Poppins-SemiBold.ttf',
         ),
         fileNameLabel: fileNameLabel,
-        currency: widget.settings.currency,
-        primaryRateLabel: widget.settings.labelForRate('primary'),
-        secondaryRateLabel: widget.settings.labelForRate('secondary'),
+        currency: snapshot.settings.currency,
+        primaryRateLabel: snapshot.settings.labelForRate('primary'),
+        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
       ),
     };
   }
@@ -970,23 +1018,19 @@ class _ExportScreenState extends State<ExportScreen> {
 
   Future<void> _open(BuildContext context, ExportedFileRecord record) async {
     if (!record.isAvailable) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Export file not found.')));
+      _message(context, 'Export file not found.');
       return;
     }
     try {
       record = await _providerCompatibleRecord(record);
+      if (!_canPresent) return;
       final override = widget.actionOverrides?.open;
       if (override != null) {
         final opened = await override(record);
         if (!context.mounted || opened) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              exportFileActionFailureMessage(ExportFileAction.open),
-            ),
-          ),
+        _message(
+          context,
+          exportFileActionFailureMessage(ExportFileAction.open),
         );
         return;
       }
@@ -997,11 +1041,7 @@ class _ExportScreenState extends State<ExportScreen> {
       );
       if (!context.mounted || result.type.name == 'done') return;
       if (kDebugMode) debugPrint('open export failed: ${result.message}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(exportFileActionFailureMessage(ExportFileAction.open)),
-        ),
-      );
+      _message(context, exportFileActionFailureMessage(ExportFileAction.open));
     } catch (error) {
       if (kDebugMode) debugPrint('open export failed: $error');
       if (error is _ExportLibraryFailure) {
@@ -1011,24 +1051,19 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(exportFileActionFailureMessage(ExportFileAction.open)),
-        ),
-      );
+      _message(context, exportFileActionFailureMessage(ExportFileAction.open));
     }
   }
 
   Future<void> _share(BuildContext context, ExportedFileRecord record) async {
     if (!record.isAvailable) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Export file not found.')));
+      _message(context, 'Export file not found.');
       return;
     }
     final format = ExportFormat.fromFileType(record.fileType);
     try {
       record = await _providerCompatibleRecord(record);
+      if (!_canPresent) return;
       final override = widget.actionOverrides?.share;
       if (override != null) {
         await override(record);
@@ -1049,11 +1084,7 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(exportFileActionFailureMessage(ExportFileAction.share)),
-        ),
-      );
+      _message(context, exportFileActionFailureMessage(ExportFileAction.share));
     }
   }
 
@@ -1127,9 +1158,7 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Export renamed.')));
+      _message(context, 'Export renamed.');
     } catch (error) {
       if (kDebugMode) debugPrint('rename export failed: $error');
       if (error is _ExportLibraryFailure) {
@@ -1139,25 +1168,21 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            exportFileActionFailureMessage(ExportFileAction.rename),
-          ),
-        ),
+      _message(
+        context,
+        exportFileActionFailureMessage(ExportFileAction.rename),
       );
     }
   }
 
   Future<void> _print(BuildContext context, ExportedFileRecord record) async {
     if (!record.isAvailable) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Export file not found.')));
+      _message(context, 'Export file not found.');
       return;
     }
     try {
       record = await _providerCompatibleRecord(record);
+      if (!_canPresent) return;
       final override = widget.actionOverrides?.print;
       if (override != null) {
         await override(record);
@@ -1176,11 +1201,7 @@ class _ExportScreenState extends State<ExportScreen> {
         return;
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(exportFileActionFailureMessage(ExportFileAction.print)),
-        ),
-      );
+      _message(context, exportFileActionFailureMessage(ExportFileAction.print));
     }
   }
 
@@ -1283,12 +1304,9 @@ class _ExportScreenState extends State<ExportScreen> {
       } catch (error) {
         if (kDebugMode) debugPrint('delete export failed: $error');
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              exportFileActionFailureMessage(ExportFileAction.delete),
-            ),
-          ),
+        _message(
+          context,
+          exportFileActionFailureMessage(ExportFileAction.delete),
         );
         return;
       }
@@ -1306,14 +1324,11 @@ class _ExportScreenState extends State<ExportScreen> {
       return;
     }
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result == _DeleteChoice.fileToo
-              ? 'Export deleted.'
-              : 'Export removed from library.',
-        ),
-      ),
+    _message(
+      context,
+      result == _DeleteChoice.fileToo
+          ? 'Export deleted.'
+          : 'Export removed from library.',
     );
   }
 }
