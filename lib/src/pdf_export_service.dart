@@ -162,7 +162,6 @@ abstract final class PdfExportService {
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
   }) {
-    CurrencyFormatter.current = currency;
     final summary = WorkCalculator.summarize(source);
     final totals = calculateTotals(summary.entries);
     final logo = pw.MemoryImage(logoBytes);
@@ -189,7 +188,7 @@ abstract final class PdfExportService {
         footer: _pageFooter,
         build: (context) => [
           pw.SizedBox(height: 14),
-          _dailyTable(summary.entries),
+          _dailyTable(summary.entries, currency),
           pw.SizedBox(height: 16),
           _totalsGrid([
             _totalItem('Days recorded', totals.workDays.toString()),
@@ -220,13 +219,19 @@ abstract final class PdfExportService {
               'Total Recorded Hours',
               formatHoursLabel(totals.totalRecordedHours),
             ),
-            _totalItem('$primaryRateLabel Pay', _money(totals.primaryPay)),
-            _totalItem('$secondaryRateLabel Pay', _money(totals.secondaryPay)),
-            _totalItem('Allowances', _money(totals.allowances)),
-            _totalItem('Uplifts', _money(totals.uplifts)),
-            _totalItem('Gross pay', _money(totals.grossTotal)),
-            _totalItem('Deductions', _money(totals.deductions)),
-            _totalItem('Net pay', _money(totals.netTotal)),
+            _totalItem(
+              '$primaryRateLabel Pay',
+              _money(totals.primaryPay, currency),
+            ),
+            _totalItem(
+              '$secondaryRateLabel Pay',
+              _money(totals.secondaryPay, currency),
+            ),
+            _totalItem('Allowances', _money(totals.allowances, currency)),
+            _totalItem('Uplifts', _money(totals.uplifts, currency)),
+            _totalItem('Gross pay', _money(totals.grossTotal, currency)),
+            _totalItem('Deductions', _money(totals.deductions, currency)),
+            _totalItem('Net pay', _money(totals.netTotal, currency)),
           ]),
         ],
       ),
@@ -247,7 +252,6 @@ abstract final class PdfExportService {
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
   }) {
-    CurrencyFormatter.current = currency;
     final summary = WorkCalculator.summarize(source);
     final totals = calculateTotals(summary.entries);
     final logo = pw.MemoryImage(logoBytes);
@@ -326,15 +330,21 @@ abstract final class PdfExportService {
                 ),
                 _summaryMetric(
                   '$primaryRateLabel Pay',
-                  _money(totals.primaryPay),
+                  _money(totals.primaryPay, currency),
                 ),
                 _summaryMetric(
                   '$secondaryRateLabel Pay',
-                  _money(totals.secondaryPay),
+                  _money(totals.secondaryPay, currency),
                 ),
-                _summaryMetric('Allowances', _money(totals.allowances)),
-                _summaryMetric('Uplifts', _money(totals.uplifts)),
-                _summaryMetric('Deductions', _money(totals.deductions)),
+                _summaryMetric(
+                  'Allowances',
+                  _money(totals.allowances, currency),
+                ),
+                _summaryMetric('Uplifts', _money(totals.uplifts, currency)),
+                _summaryMetric(
+                  'Deductions',
+                  _money(totals.deductions, currency),
+                ),
               ],
             ),
             pw.Spacer(),
@@ -357,7 +367,7 @@ abstract final class PdfExportService {
                     ),
                   ),
                   pw.Text(
-                    _money(totals.netTotal),
+                    _money(totals.netTotal, currency),
                     style: pw.TextStyle(
                       color: PdfColors.white,
                       fontSize: 24,
@@ -565,7 +575,10 @@ abstract final class PdfExportService {
     );
   }
 
-  static pw.Widget _dailyTable(List<WorkEntry> entries) {
+  static pw.Widget _dailyTable(
+    List<WorkEntry> entries,
+    CurrencyConfig currency,
+  ) {
     final headers = [
       'Date',
       'Site',
@@ -592,12 +605,12 @@ abstract final class PdfExportService {
                 ? (entry.isPaidBankHoliday ? 'Paid' : 'Unpaid')
                 : '',
             formatHoursLabel(entry.totalHours),
-            _money(entry.hourlyRateUsed),
-            _money(entry.dailyAllowance),
-            _money(entry.jobUplift),
-            _money(entry.totalPay),
-            _money(entry.deductionAmount),
-            _money(entry.netPay),
+            _money(entry.hourlyRateUsed, currency),
+            _money(entry.dailyAllowance, currency),
+            _money(entry.jobUplift, currency),
+            _money(entry.totalPay, currency),
+            _money(entry.deductionAmount, currency),
+            _money(entry.netPay, currency),
           ],
         )
         .toList();
@@ -764,5 +777,6 @@ abstract final class PdfExportService {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  static String _money(double value) => CurrencyFormatter.format(value);
+  static String _money(double value, CurrencyConfig currency) =>
+      CurrencyFormatter.format(value, currency);
 }

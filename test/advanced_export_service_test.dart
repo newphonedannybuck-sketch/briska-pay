@@ -288,6 +288,58 @@ void main() {
       expect(bytes.length, greaterThan(1000), reason: code);
     }
   });
+  test('PDF exports do not change the application currency', () async {
+    final originalCurrency = CurrencyFormatter.current;
+    final gbp = CurrencyCatalog.byCode('GBP');
+    final eur = CurrencyCatalog.byCode('EUR');
+
+    final logo = File('assets/branding/briska-bp-in-app.png').readAsBytesSync();
+    final regularFont = File(
+      'assets/fonts/Poppins-Regular.ttf',
+    ).readAsBytesSync();
+    final boldFont = File(
+      'assets/fonts/Poppins-SemiBold.ttf',
+    ).readAsBytesSync();
+
+    try {
+      CurrencyFormatter.current = gbp;
+
+      final timesheet = await PdfExportService.buildTimesheetPdf(
+        entries,
+        fullName: 'Test Employee',
+        companyName: 'Test Company',
+        periodLabel: 'July 2026',
+        generatedAt: DateTime(2026, 7, 31),
+        logoBytes: logo,
+        regularFontBytes: regularFont,
+        boldFontBytes: boldFont,
+        currency: eur,
+      );
+
+      expect(CurrencyFormatter.current.code, 'GBP');
+
+      final summary = await PdfExportService.buildSummaryPdf(
+        entries,
+        fullName: 'Test Employee',
+        companyName: 'Test Company',
+        periodLabel: 'July 2026',
+        generatedAt: DateTime(2026, 7, 31),
+        logoBytes: logo,
+        regularFontBytes: regularFont,
+        boldFontBytes: boldFont,
+        currency: eur,
+      );
+
+      expect(CurrencyFormatter.current.code, 'GBP');
+      for (final bytes in [timesheet, summary]) {
+        final text = pdfText(bytes);
+        expect(text, contains(eur.symbol));
+        expect(text, isNot(contains(gbp.symbol)));
+      }
+    } finally {
+      CurrencyFormatter.current = originalCurrency;
+    }
+  });
   test('PDF reports omit disabled employee and company fields', () async {
     final logo = File('assets/branding/briska-bp-in-app.png').readAsBytesSync();
     final regularFont = File(
