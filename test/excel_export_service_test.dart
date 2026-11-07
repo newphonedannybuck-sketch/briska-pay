@@ -210,4 +210,53 @@ void main() {
       CurrencyFormatter.excelNumberFormat(defaultCurrency),
     ], everyElement(isNot(endsWith('.'))));
   });
+  test('Excel signature section appears only when enabled', () {
+    final entry = WorkEntry(
+      id: 'signature-test',
+      date: DateTime(2026, 7, 9),
+      siteName: 'Test Job',
+      startTime: '08:00',
+      finishTime: '16:00',
+      breakMinutes: 0,
+      hourlyRateUsed: 20,
+      dailyAllowance: 0,
+      jobUplift: 0,
+      totalHours: 8,
+      wages: 160,
+      totalPay: 160,
+      notes: '',
+    );
+
+    List<String> labels(bool includeSignature) {
+      final bytes = ExcelExportService.buildWorkbook([
+        entry,
+      ], includeSignatureLine: includeSignature);
+      final sheet = Excel.decodeBytes(bytes).tables['Work Entries']!;
+      return sheet.rows
+          .where((row) => row.isNotEmpty && row.first?.value is TextCellValue)
+          .map(
+            (row) => (row.first!.value as TextCellValue).value.text.toString(),
+          )
+          .toList();
+    }
+
+    final withoutSignature = labels(false);
+    final withSignature = labels(true);
+
+    expect(withoutSignature, isNot(contains('Employee signature')));
+    expect(withoutSignature, isNot(contains('Signature date')));
+
+    expect(withSignature, contains('Employee signature'));
+    expect(withSignature, contains('Signature date'));
+    expect(withSignature, contains('Net pay'));
+    final sheet = Excel.decodeBytes(
+      ExcelExportService.buildWorkbook([entry], includeSignatureLine: true),
+    ).tables['Work Entries']!;
+    for (final label in ['Employee signature', 'Signature date']) {
+      final row = sheet.rows.singleWhere(
+        (row) => row.isNotEmpty && row.first?.value.toString() == label,
+      );
+      expect(row[1]?.value?.toString() ?? '', isEmpty);
+    }
+  });
 }

@@ -78,6 +78,7 @@ abstract final class PdfExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeSignatureLine = false,
   }) async {
     final bytes = await buildTimesheetPdf(
       entries,
@@ -91,6 +92,7 @@ abstract final class PdfExportService {
       currency: currency,
       primaryRateLabel: primaryRateLabel,
       secondaryRateLabel: secondaryRateLabel,
+      includeSignatureLine: includeSignatureLine,
     );
     final file = await ExportFileNamer.createExportFile(
       fullName: fullName,
@@ -120,6 +122,7 @@ abstract final class PdfExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeSignatureLine = false,
   }) async {
     final bytes = await buildSummaryPdf(
       entries,
@@ -133,6 +136,7 @@ abstract final class PdfExportService {
       currency: currency,
       primaryRateLabel: primaryRateLabel,
       secondaryRateLabel: secondaryRateLabel,
+      includeSignatureLine: includeSignatureLine,
     );
     final file = await ExportFileNamer.createExportFile(
       fullName: fullName,
@@ -161,6 +165,7 @@ abstract final class PdfExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeSignatureLine = false,
   }) {
     final summary = WorkCalculator.summarize(source);
     final totals = calculateTotals(summary.entries);
@@ -233,6 +238,7 @@ abstract final class PdfExportService {
             _totalItem('Deductions', _money(totals.deductions, currency)),
             _totalItem('Net pay', _money(totals.netTotal, currency)),
           ]),
+          if (includeSignatureLine) _signatureSection(),
         ],
       ),
     );
@@ -251,6 +257,7 @@ abstract final class PdfExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeSignatureLine = false,
   }) {
     final summary = WorkCalculator.summarize(source);
     final totals = calculateTotals(summary.entries);
@@ -377,12 +384,35 @@ abstract final class PdfExportService {
                 ],
               ),
             ),
+            if (includeSignatureLine) _signatureSection(),
           ],
         ),
       ),
     );
     return document.save();
   }
+
+  static pw.Widget _signatureSection() => pw.Container(
+    padding: const pw.EdgeInsets.only(top: 18),
+    child: pw.Row(
+      children: [
+        for (final label in ['Employee signature', 'Signature date'])
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.only(right: 18),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(label, style: const pw.TextStyle(fontSize: 9)),
+                  pw.SizedBox(height: 22),
+                  pw.Container(height: 0.5, color: PdfColors.grey600),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 
   static ExportTotals calculateTotals(List<WorkEntry> entries) {
     final workEntries = entries.where((entry) => entry.entryType == 'WorkDay');

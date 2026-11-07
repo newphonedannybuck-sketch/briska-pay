@@ -935,6 +935,7 @@ class _ExportScreenState extends State<ExportScreen> {
         primaryRateLabel: snapshot.settings.labelForRate('primary'),
         secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
         includeNotes: options.includeNotes,
+        includeSignatureLine: options.includeSignatureLine,
       ),
       ExportFormat.csv => CsvExportService.export(
         exportEntries,
@@ -966,6 +967,7 @@ class _ExportScreenState extends State<ExportScreen> {
         currency: snapshot.settings.currency,
         primaryRateLabel: snapshot.settings.labelForRate('primary'),
         secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
+        includeSignatureLine: options.includeSignatureLine,
       ),
       ExportFormat.pdfSummary => PdfExportService.exportSummary(
         exportEntries,
@@ -986,6 +988,7 @@ class _ExportScreenState extends State<ExportScreen> {
         currency: snapshot.settings.currency,
         primaryRateLabel: snapshot.settings.labelForRate('primary'),
         secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
+        includeSignatureLine: options.includeSignatureLine,
       ),
     };
   }

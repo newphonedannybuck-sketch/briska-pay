@@ -39,6 +39,7 @@ abstract final class ExcelExportService {
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
     bool includeNotes = true,
+    bool includeSignatureLine = false,
   }) {
     final summary = WorkCalculator.summarize(source);
     final workbook = Excel.createExcel();
@@ -244,6 +245,11 @@ abstract final class ExcelExportService {
       config: currency,
       highlight: true,
     );
+    if (includeSignatureLine) {
+      sheet.appendRow([TextCellValue('')]);
+      sheet.appendRow([TextCellValue('Employee signature'), TextCellValue('')]);
+      sheet.appendRow([TextCellValue('Signature date'), TextCellValue('')]);
+    }
 
     const widths = [
       14.0,
@@ -283,6 +289,7 @@ abstract final class ExcelExportService {
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
     bool includeNotes = true,
+    bool includeSignatureLine = false,
   }) async {
     if (entries.isEmpty) {
       throw ArgumentError('Record a day before exporting.');
@@ -304,6 +311,7 @@ abstract final class ExcelExportService {
       primaryRateLabel: primaryRateLabel,
       secondaryRateLabel: secondaryRateLabel,
       includeNotes: includeNotes,
+      includeSignatureLine: includeSignatureLine,
     );
     await file.writeAsBytes(bytes, flush: true);
     return ExportFileResult(
