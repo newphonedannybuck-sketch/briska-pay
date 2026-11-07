@@ -35,6 +35,7 @@ abstract final class CsvExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeNotes = true,
   }) {
     final columns = currencyColumns(currency.code);
     final summary = WorkCalculator.summarize(source);
@@ -61,7 +62,7 @@ abstract final class CsvExportService {
           _moneyNumber(entry.deductionAmount),
           entry.deductionReason,
           _moneyNumber(entry.netPay),
-          entry.notes,
+          includeNotes ? entry.notes : '',
         ],
       ),
     ];
@@ -78,6 +79,7 @@ abstract final class CsvExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeNotes = true,
   }) async {
     if (entries.isEmpty) {
       throw ArgumentError('Record a day before exporting.');
@@ -97,6 +99,7 @@ abstract final class CsvExportService {
       currency: currency,
       primaryRateLabel: primaryRateLabel,
       secondaryRateLabel: secondaryRateLabel,
+      includeNotes: includeNotes,
     );
     await file.writeAsBytes(bytes, flush: true);
     return ExportFileResult(

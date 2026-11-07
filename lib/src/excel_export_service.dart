@@ -38,6 +38,7 @@ abstract final class ExcelExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeNotes = true,
   }) {
     final summary = WorkCalculator.summarize(source);
     final workbook = Excel.createExcel();
@@ -127,7 +128,7 @@ abstract final class ExcelExportService {
         DoubleCellValue(entry.deductionAmount),
         TextCellValue(entry.deductionReason),
         DoubleCellValue(entry.netPay),
-        TextCellValue(entry.notes),
+        TextCellValue(includeNotes ? entry.notes : ''),
       ]);
       final row = headerRow + 1 + index;
       _applyDateStyle(sheet, column: 0, row: row);
@@ -281,6 +282,7 @@ abstract final class ExcelExportService {
     CurrencyConfig currency = defaultCurrency,
     String primaryRateLabel = 'Home',
     String secondaryRateLabel = 'Away',
+    bool includeNotes = true,
   }) async {
     if (entries.isEmpty) {
       throw ArgumentError('Record a day before exporting.');
@@ -301,6 +303,7 @@ abstract final class ExcelExportService {
       currency: currency,
       primaryRateLabel: primaryRateLabel,
       secondaryRateLabel: secondaryRateLabel,
+      includeNotes: includeNotes,
     );
     await file.writeAsBytes(bytes, flush: true);
     return ExportFileResult(

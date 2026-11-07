@@ -495,8 +495,10 @@ abstract final class PdfExportService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              _headerDetail('User Name', _fallback(fullName)),
-              _headerDetail('Employer / company', _fallback(companyName)),
+              if (fullName.trim().isNotEmpty)
+                _headerDetail('User Name', fullName.trim()),
+              if (companyName.trim().isNotEmpty)
+                _headerDetail('Employer / company', companyName.trim()),
               _headerDetail('Pay period', periodLabel),
               _headerDetail('Generated Date', _dateLabel(generatedAt)),
             ],
@@ -537,14 +539,17 @@ abstract final class PdfExportService {
                   ),
                 ),
                 pw.SizedBox(height: 4),
-                pw.Text(
-                  '${_fallback(fullName)}'
-                  '${companyName.trim().isEmpty ? '' : ' - ${companyName.trim()}'}',
-                  style: const pw.TextStyle(
-                    color: PdfColors.white,
-                    fontSize: 11,
+                if (fullName.trim().isNotEmpty || companyName.trim().isNotEmpty)
+                  pw.Text(
+                    [
+                      if (fullName.trim().isNotEmpty) fullName.trim(),
+                      if (companyName.trim().isNotEmpty) companyName.trim(),
+                    ].join(' - '),
+                    style: const pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 11,
+                    ),
                   ),
-                ),
                 pw.Text(
                   'Generated ${_dateLabel(generatedAt)}',
                   style: const pw.TextStyle(
@@ -760,9 +765,4 @@ abstract final class PdfExportService {
   }
 
   static String _money(double value) => CurrencyFormatter.format(value);
-
-  static String _fallback(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? 'Not provided' : trimmed;
-  }
 }

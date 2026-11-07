@@ -288,4 +288,45 @@ void main() {
       expect(bytes.length, greaterThan(1000), reason: code);
     }
   });
+  test('PDF reports omit disabled employee and company fields', () async {
+    final logo = File('assets/branding/briska-bp-in-app.png').readAsBytesSync();
+    final regularFont = File(
+      'assets/fonts/Poppins-Regular.ttf',
+    ).readAsBytesSync();
+    final boldFont = File(
+      'assets/fonts/Poppins-SemiBold.ttf',
+    ).readAsBytesSync();
+
+    final timesheet = await PdfExportService.buildTimesheetPdf(
+      entries,
+      fullName: '',
+      companyName: '',
+      periodLabel: 'July 2026',
+      generatedAt: DateTime(2026, 7, 31),
+      logoBytes: logo,
+      regularFontBytes: regularFont,
+      boldFontBytes: boldFont,
+    );
+
+    final summary = await PdfExportService.buildSummaryPdf(
+      entries,
+      fullName: '',
+      companyName: '',
+      periodLabel: 'July 2026',
+      generatedAt: DateTime(2026, 7, 31),
+      logoBytes: logo,
+      regularFontBytes: regularFont,
+      boldFontBytes: boldFont,
+    );
+
+    for (final bytes in [timesheet, summary]) {
+      final text = pdfText(bytes);
+
+      expect(text, isNot(contains('Notprovided')));
+      expect(text, isNot(contains('UserName')));
+      expect(text, isNot(contains('Employer/company')));
+      expect(text, contains('July2026'));
+      expect(text, contains('BriskaPay'));
+    }
+  });
 }

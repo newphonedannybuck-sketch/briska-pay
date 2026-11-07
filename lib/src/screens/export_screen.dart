@@ -473,9 +473,12 @@ class _ExportScreenState extends State<ExportScreen> {
                     _optionSwitch(
                       'Include employee name',
                       _options.includeEmployeeName,
-                      (value) => _options = _options.copyWith(
-                        includeEmployeeName: value,
-                      ),
+                      (value) {
+                        _options = _options.copyWith(
+                          includeEmployeeName: value,
+                        );
+                        _updateSuggestedFilename();
+                      },
                     ),
                     _optionSwitch(
                       'Include notes',
@@ -710,7 +713,7 @@ class _ExportScreenState extends State<ExportScreen> {
 
   String _suggestedFilename(ExportDateRange range, DateTime createdAt) =>
       ExportFilenameService.suggested(
-        employeeFullName: widget.fullName,
+        employeeFullName: _options.includeEmployeeName ? widget.fullName : '',
         rangeType: _rangeType,
         range: range,
         settings: widget.settings,
@@ -855,6 +858,7 @@ class _ExportScreenState extends State<ExportScreen> {
   ) async {
     final add = widget.onAdd;
     final settings = widget.settings;
+    final options = _options;
     final reportType = _reportType;
     final rangeType = _rangeType;
     final range = _range;
@@ -867,6 +871,7 @@ class _ExportScreenState extends State<ExportScreen> {
         periodLabel: periodLabel,
         fileNameLabel: fileNameLabel,
         generatedAt: now,
+        options: options,
       );
       final summary = WorkCalculator.summarize(exportEntries);
       final record = ExportedFileRecord(
@@ -912,6 +917,7 @@ class _ExportScreenState extends State<ExportScreen> {
     required String periodLabel,
     required String fileNameLabel,
     required DateTime generatedAt,
+    required ExportOptions options,
   }) async {
     // Capture before the first await, including PDF asset loading. Retained
     // screens can receive new settings while the original file is generated.
@@ -921,28 +927,30 @@ class _ExportScreenState extends State<ExportScreen> {
     return switch (format) {
       ExportFormat.excel => ExcelExportService.export(
         exportEntries,
-        fullName: snapshot.fullName,
-        companyName: snapshot.companyName,
+        fullName: options.includeEmployeeName ? snapshot.fullName : '',
+        companyName: options.includeCompanyName ? snapshot.companyName : '',
         periodLabel: periodLabel,
         fileNameLabel: fileNameLabel,
         currency: snapshot.settings.currency,
         primaryRateLabel: snapshot.settings.labelForRate('primary'),
         secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
+        includeNotes: options.includeNotes,
       ),
       ExportFormat.csv => CsvExportService.export(
         exportEntries,
-        fullName: snapshot.fullName,
-        companyName: snapshot.companyName,
+        fullName: options.includeEmployeeName ? snapshot.fullName : '',
+        companyName: options.includeCompanyName ? snapshot.companyName : '',
         periodLabel: periodLabel,
         fileNameLabel: fileNameLabel,
         currency: snapshot.settings.currency,
         primaryRateLabel: snapshot.settings.labelForRate('primary'),
         secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
+        includeNotes: options.includeNotes,
       ),
       ExportFormat.pdfTimesheet => PdfExportService.exportTimesheet(
         exportEntries,
-        fullName: snapshot.fullName,
-        companyName: snapshot.companyName,
+        fullName: options.includeEmployeeName ? snapshot.fullName : '',
+        companyName: options.includeCompanyName ? snapshot.companyName : '',
         periodLabel: periodLabel,
         generatedAt: generatedAt,
         logoBytes: await _loadAssetBytes(
@@ -961,8 +969,8 @@ class _ExportScreenState extends State<ExportScreen> {
       ),
       ExportFormat.pdfSummary => PdfExportService.exportSummary(
         exportEntries,
-        fullName: snapshot.fullName,
-        companyName: snapshot.companyName,
+        fullName: options.includeEmployeeName ? snapshot.fullName : '',
+        companyName: options.includeCompanyName ? snapshot.companyName : '',
         periodLabel: periodLabel,
         generatedAt: generatedAt,
         logoBytes: await _loadAssetBytes(

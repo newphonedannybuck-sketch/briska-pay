@@ -2527,6 +2527,68 @@ void main() {
     expect(find.text('PDF'), findsOneWidget);
   });
 
+  testWidgets('export filename respects employee privacy and manual edits', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ExportScreen(
+          entries: sampleEntries,
+          fullName: 'Danny Buck',
+          companyName: '',
+          settings: const AppSettings(onboardingCompleted: true),
+          records: const [],
+          onPreferencesChanged: (_) {},
+          onAdd: (_) async => true,
+          onDelete: (_) async => true,
+          onUpdate: (_) async => true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('More options'));
+    await tester.tap(find.text('More options'));
+    await tester.pumpAndSettle();
+
+    final filenameField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'Edit filename',
+    );
+
+    String filename() =>
+        tester.widget<TextField>(filenameField).controller!.text;
+
+    expect(filename(), contains('Danny_Buck'));
+
+    final employeeSwitch = find.ancestor(
+      of: find.text('Include employee name'),
+      matching: find.byType(SwitchListTile),
+    );
+
+    await tester.ensureVisible(employeeSwitch);
+    await tester.tap(employeeSwitch);
+    await tester.pumpAndSettle();
+
+    expect(filename(), isNot(contains('Danny_Buck')));
+
+    await tester.ensureVisible(filenameField);
+    await tester.enterText(filenameField, 'My_Private_Report');
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(employeeSwitch);
+    await tester.tap(employeeSwitch);
+    await tester.pumpAndSettle();
+
+    expect(filename(), 'My_Private_Report');
+
+    await tester.ensureVisible(find.text('Reset filename'));
+    await tester.tap(find.text('Reset filename'));
+    await tester.pumpAndSettle();
+
+    expect(filename(), contains('Danny_Buck'));
+  });
   testWidgets('Day Type selector adapts fields for every entry type', (
     tester,
   ) async {
