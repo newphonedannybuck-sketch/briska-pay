@@ -319,7 +319,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     } else if (_entryType == 'UnpaidDayOff' || _entryType == 'SickDay') {
       _rateType = 'primary';
       _selectedRate = _entryType == 'SickDay' && _isPaidSickDay
-          ? preferences.primaryRateValue
+          ? (entry?.hourlyRateUsed ?? preferences.primaryRateValue)
           : 0;
       _appliedAllowance = 0;
       _allowanceHasValue = false;
