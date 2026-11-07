@@ -601,14 +601,25 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
   }
 
+  bool _backupSessionIsCurrent(int session, int generation) =>
+      mounted &&
+      _foreground &&
+      _lockState == AppLockInitializationState.unlocked &&
+      _lockSession == session &&
+      _entryDataGeneration == generation;
+
   Future<void> _createBackup() async {
+    final session = _lockSession;
+    final generation = _entryDataGeneration;
+    bool isCurrent() => _backupSessionIsCurrent(session, generation);
+    if (!mounted || !isCurrent()) return;
     try {
       final file = await BriskaBackupService.createBackupFile(
         settings: _preferences,
         workEntries: _entries,
         exportRecords: _exportRecords,
       );
-      if (!mounted) return;
+      if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Backup saved: ${file.uri.pathSegments.last}')),
       );
@@ -616,7 +627,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     } catch (error, stackTrace) {
       debugPrint('backup failed: $error');
       if (kDebugMode) debugPrintStack(stackTrace: stackTrace);
-      if (!mounted) return;
+      if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not create Briska Pay backup.')),
       );
@@ -624,28 +635,35 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   }
 
   Future<void> _restoreBackup() async {
-    if (_restoreInProgress) return;
+    final session = _lockSession;
+    final generation = _entryDataGeneration;
+    if (_restoreInProgress || !_backupSessionIsCurrent(session, generation)) {
+      return;
+    }
     _restoreInProgress = true;
     try {
-      await _queueEntryOperation(_restoreBackupInQueue);
+      await _queueEntryOperation(
+        () => _restoreBackupInQueue(session, generation),
+      );
     } finally {
       _restoreInProgress = false;
     }
   }
 
-  Future<void> _restoreBackupInQueue() async {
-    if (!mounted) return;
+  Future<void> _restoreBackupInQueue(int session, int generation) async {
+    bool isCurrent() => _backupSessionIsCurrent(session, generation);
+    if (!mounted || !isCurrent()) return;
     try {
       final file = await BriskaBackupService.pickBackupFile();
+      if (!mounted || !isCurrent()) return;
       if (file == null) {
-        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Restore cancelled.')));
         return;
       }
       final preview = await BriskaBackupService.previewFile(file);
-      if (!mounted) return;
+      if (!mounted || !isCurrent()) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -696,20 +714,24 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           ],
         ),
       );
-      if (confirmed != true) return;
+      if (confirmed != true || !isCurrent()) return;
       await BriskaBackupService.createBackupFile(
         settings: _preferences,
         workEntries: _entries,
         exportRecords: _exportRecords,
       );
+      if (!mounted || !isCurrent()) return;
       await LocalStorage.replaceAll(
+        validateOperation: () {
+          if (!isCurrent()) throw const LocalRestoreException();
+        },
         settings: preview.data.settings,
         entries: preview.data.workEntries,
         exportRecords: preview.data.exportRecords,
       );
+      if (!mounted || !isCurrent()) return;
       _entryDataGeneration++;
       _preferencesSaveRevision++;
-      if (!mounted) return;
       setState(() {
         _preferences = preview.data.settings;
         CurrencyFormatter.current = _preferences.currency;
@@ -732,14 +754,14 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         _restoreRecoveryRequired = true;
       });
     } on BriskaBackupException catch (error) {
-      if (!mounted) return;
+      if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (error, stackTrace) {
       debugPrint('restore failed: $error');
       if (kDebugMode) debugPrintStack(stackTrace: stackTrace);
-      if (!mounted) return;
+      if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(

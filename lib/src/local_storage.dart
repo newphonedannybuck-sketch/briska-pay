@@ -198,6 +198,9 @@ class LocalStorage {
     required AppSettings settings,
     required List<WorkEntry> entries,
     required List<ExportedFileRecord> exportRecords,
+    // Throw to cancel an invalidated caller and use the same rollback as a
+    // storage failure. Check again after the last write before committing.
+    void Function()? validateOperation,
   }) async {
     late final _RestoreSnapshot original;
     try {
@@ -213,13 +216,18 @@ class LocalStorage {
 
     try {
       await _beforeRestoreWrite(RestoreWriteStage.settings);
+      validateOperation?.call();
       await saveSettings(settings);
       await _beforeRestoreWrite(RestoreWriteStage.workEntries);
+      validateOperation?.call();
       await saveEntries(entries);
       await _beforeRestoreWrite(RestoreWriteStage.exportLibrary);
+      validateOperation?.call();
       await saveExportRecords(exportRecords);
       await _beforeRestoreWrite(RestoreWriteStage.dataVersion);
+      validateOperation?.call();
       await markCurrentDataVersion();
+      validateOperation?.call();
     } catch (_) {
       if (!await _rollbackRestore(original)) {
         throw const LocalRestoreRollbackException();
