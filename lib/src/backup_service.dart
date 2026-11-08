@@ -86,6 +86,15 @@ abstract final class BriskaBackupService {
       '${directory.path}${Platform.pathSeparator}backups',
     );
     await backupDirectory.create(recursive: true);
+    final data = BriskaBackupData(
+      createdAt: now,
+      settings: settings,
+      workEntries: workEntries,
+      exportRecords: exportRecords,
+    );
+    const encoder = JsonEncoder.withIndent('  ');
+    final encoded = encoder.convert(data.toJson());
+
     final originalName = backupFileName(now);
     final baseName = originalName.substring(0, originalName.length - 5);
     File file;
@@ -106,14 +115,7 @@ abstract final class BriskaBackupService {
         suffix++;
       }
     }
-    final data = BriskaBackupData(
-      createdAt: now,
-      settings: settings,
-      workEntries: workEntries,
-      exportRecords: exportRecords,
-    );
-    const encoder = JsonEncoder.withIndent('  ');
-    return file.writeAsString(encoder.convert(data.toJson()), flush: true);
+    return file.writeAsString(encoded, flush: true);
   }
 
   static Future<void> shareBackup(File file) {

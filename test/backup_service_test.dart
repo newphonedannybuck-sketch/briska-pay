@@ -449,6 +449,48 @@ void main() {
     );
   });
 
+  test('failed backup encoding leaves no incomplete JSON file', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'briska_backup_encoding_failure_',
+    );
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'getApplicationDocumentsDirectory');
+          return directory.path;
+        });
+    addTearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+      await directory.delete(recursive: true);
+    });
+
+    final invalidEntry = WorkEntry.fromJson({
+      ...validEntry(),
+      'wages': double.infinity,
+    });
+
+    await expectLater(
+      BriskaBackupService.createBackupFile(
+        settings: const AppSettings(),
+        workEntries: [invalidEntry],
+        exportRecords: [],
+        createdAt: DateTime(2026, 7, 14, 10, 30),
+      ),
+      throwsA(isA<JsonUnsupportedObjectError>()),
+    );
+
+    final backupDirectory = Directory(
+      '${directory.path}${Platform.pathSeparator}backups',
+    );
+    final files = await backupDirectory
+        .list()
+        .where((entity) => entity is File && entity.path.endsWith('.json'))
+        .toList();
+
+    expect(files, isEmpty);
+  });
+
   test('backup preview rejects invalid JSON files cleanly', () async {
     final file = File(
       '${Directory.systemTemp.path}${Platform.pathSeparator}briska_bad_backup.json',
