@@ -407,6 +407,48 @@ void main() {
     expect(existingEntries, hasLength(1));
   });
 
+  test('backups created in the same minute never overwrite each other', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'briska_backup_collision_',
+    );
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'getApplicationDocumentsDirectory');
+          return directory.path;
+        });
+    addTearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+      await directory.delete(recursive: true);
+    });
+
+    final timestamp = DateTime(2026, 7, 14, 10, 30);
+    final first = await BriskaBackupService.createBackupFile(
+      settings: const AppSettings(fullName: 'Original user'),
+      workEntries: [],
+      exportRecords: [],
+      createdAt: timestamp,
+    );
+    final originalContents = await first.readAsString();
+
+    final second = await BriskaBackupService.createBackupFile(
+      settings: const AppSettings(fullName: 'Second user'),
+      workEntries: [],
+      exportRecords: [],
+      createdAt: timestamp,
+    );
+
+    expect(second.path, isNot(first.path));
+    expect(await first.exists(), isTrue);
+    expect(await second.exists(), isTrue);
+    expect(await first.readAsString(), originalContents);
+    expect(
+      (jsonDecode(await second.readAsString()) as Map)['settings']['fullName'],
+      'Second user',
+    );
+  });
+
   test('backup preview rejects invalid JSON files cleanly', () async {
     final file = File(
       '${Directory.systemTemp.path}${Platform.pathSeparator}briska_bad_backup.json',

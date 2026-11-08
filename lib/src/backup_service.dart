@@ -86,9 +86,26 @@ abstract final class BriskaBackupService {
       '${directory.path}${Platform.pathSeparator}backups',
     );
     await backupDirectory.create(recursive: true);
-    final file = File(
-      '${backupDirectory.path}${Platform.pathSeparator}${backupFileName(now)}',
-    );
+    final originalName = backupFileName(now);
+    final baseName = originalName.substring(0, originalName.length - 5);
+    File file;
+    var suffix = 0;
+
+    while (true) {
+      final name = suffix == 0
+          ? originalName
+          : '${baseName}_$suffix.json';
+      final candidate = File(
+        '${backupDirectory.path}${Platform.pathSeparator}$name',
+      );
+      try {
+        await candidate.create(exclusive: true);
+        file = candidate;
+        break;
+      } on PathExistsException {
+        suffix++;
+      }
+    }
     final data = BriskaBackupData(
       createdAt: now,
       settings: settings,
