@@ -1,5 +1,15 @@
 import 'package:briska/src/briska_app.dart';
 import 'package:briska/src/models.dart';
+import 'package:briska/src/local_storage.dart';
+import 'package:briska/src/backup_service.dart';
+import 'package:briska/src/csv_export_service.dart';
+import 'package:briska/src/excel_export_service.dart';
+import 'package:briska/src/pdf_export_service.dart';
+import 'package:excel/excel.dart'
+    show Excel, DoubleCellValue, IntCellValue, DateCellValue;
+import 'dart:convert';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:briska/src/work_calculator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +70,157 @@ void main() {
   String text(WidgetTester tester) =>
       tester.widget<TextField>(hoursField).controller!.text;
 
+  for (final type in ['Holiday', 'bankHoliday']) {
+    for (final input in ['', '0', '7.5', '24']) {
+      testWidgets('$type saves $input as numeric hours and reopens correctly', (
+        tester,
+      ) async {
+        final previous = SharedPreferencesAsyncPlatform.instance;
+        SharedPreferencesAsyncPlatform.instance =
+            InMemorySharedPreferencesAsync.empty();
+        addTearDown(() => SharedPreferencesAsyncPlatform.instance = previous);
+        await open(
+          tester,
+          initial: savedEntry(type, hours: 0),
+          save: (entry) async {
+            await LocalStorage.saveEntries([entry]);
+            return false;
+          },
+        );
+        expect(text(tester), isEmpty);
+        await tester.enterText(hoursField, input);
+        await submit(tester);
+        final loaded = (await LocalStorage.loadEntries()).single;
+        final expected = double.tryParse(input) ?? 0;
+        expect(loaded.totalHours, expected);
+        expect(loaded.toJson()['totalHours'], isA<num>());
+        expect(loaded.wages, expected * 17);
+        expect(loaded.totalPay, expected * 17 + 5);
+        expect(loaded.startTime, isEmpty);
+        expect(loaded.finishTime, isEmpty);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await open(tester, initial: loaded);
+        expect(text(tester), expected == 0 ? '' : expected.toString());
+        expect(
+          PdfExportService.calculateTotals([loaded]).totalRecordedHours,
+          expected,
+        );
+        final csv = utf8.decode(CsvExportService.buildCsv([loaded]));
+        expect(double.parse(csv.split('\r\n')[1].split(',')[8]), expected);
+        final backup = BriskaBackupData(
+          createdAt: DateTime(2026, 7, 14),
+          settings: const AppSettings(),
+          workEntries: [loaded],
+          exportRecords: [],
+        );
+        expect(
+          BriskaBackupService.previewJson(
+            backup.toJson(),
+          ).data.workEntries.single.toJson(),
+          loaded.toJson(),
+        );
+        final sheet = Excel.decodeBytes(
+          ExcelExportService.buildWorkbook([loaded]),
+        ).tables['Work Entries']!;
+        final row = sheet.rows.singleWhere(
+          (row) => row.isNotEmpty && row.first?.value is DateCellValue,
+        );
+        final hoursCell = row[8]!.value;
+        expect(hoursCell, anyOf(isA<IntCellValue>(), isA<DoubleCellValue>()));
+        expect(
+          hoursCell is IntCellValue
+              ? hoursCell.value
+              : (hoursCell as DoubleCellValue).value,
+          expected,
+        );
+      });
+    }
+    testWidgets(
+      '$type rejects invalid hours then accepts correction without clamping',
+      (tester) async {
+        WorkEntry? saved;
+        await open(
+          tester,
+          initial: savedEntry(type),
+          save: (entry) async {
+            saved = entry;
+            return false;
+          },
+        );
+        for (final input in ['24.01', '25', '-1', 'abc', 'NaN', 'Infinity']) {
+          await tester.ensureVisible(hoursField);
+          await tester.enterText(hoursField, input);
+          await submit(tester);
+          expect(saved, isNull);
+          expect(text(tester), input);
+          expect(
+            tester.widget<TextField>(hoursField).decoration!.errorText,
+            'Enter valid hours from 0 to 24.',
+          );
+        }
+        await tester.enterText(hoursField, '23.75');
+        await submit(tester);
+        expect(saved!.totalHours, 23.75);
+        expect(
+          tester.widget<TextField>(hoursField).decoration!.errorText,
+          isNull,
+        );
+      },
+    );
+    testWidgets(
+      '$type historical over-limit hours and earnings reload unchanged',
+      (tester) async {
+        final previous = SharedPreferencesAsyncPlatform.instance;
+        SharedPreferencesAsyncPlatform.instance =
+            InMemorySharedPreferencesAsync.empty();
+        addTearDown(() => SharedPreferencesAsyncPlatform.instance = previous);
+        final original = savedEntry(type, hours: 25);
+        await LocalStorage.saveEntries([original]);
+        final loaded = (await LocalStorage.loadEntries()).single;
+        expect(loaded.toJson(), original.toJson());
+        var saves = 0;
+        await open(
+          tester,
+          initial: loaded,
+          save: (_) async {
+            saves++;
+            return false;
+          },
+        );
+        expect(text(tester), '25.0');
+        await submit(tester);
+        expect(saves, 0);
+        expect(
+          (await LocalStorage.loadEntries()).single.toJson(),
+          original.toJson(),
+        );
+      },
+    );
+  }
+  testWidgets('blank hours survive holiday switches and paid status toggles', (
+    tester,
+  ) async {
+    await open(tester);
+    await select(tester, 'holiday');
+    await select(tester, 'bankHoliday');
+    expect(text(tester), isEmpty);
+    await tester.ensureVisible(find.text('Unpaid'));
+    await tester.tap(find.text('Unpaid'));
+    await tester.pumpAndSettle();
+    expect(text(tester), isEmpty);
+    await select(tester, 'holiday');
+    expect(text(tester), isEmpty);
+    await select(tester, 'bankHoliday');
+    await tester.ensureVisible(hoursField);
+    await tester.enterText(hoursField, '7.5');
+    for (final label in ['Unpaid', 'Paid']) {
+      await tester.ensureVisible(find.text(label).first);
+      await tester.tap(find.text(label).first);
+      await tester.pumpAndSettle();
+      expect(text(tester), '7.5');
+    }
+  });
+
   for (final type in ['Holiday', 'bankHoliday', 'BankHoliday']) {
     test('$type validates hours and retains saved hours on recalculation', () {
       for (final hours in [
@@ -67,6 +228,8 @@ void main() {
         0.0,
         7.5,
         8.0,
+        24.0,
+        24.01,
         -1.0,
         double.nan,
         double.infinity,
@@ -83,7 +246,8 @@ void main() {
             holidayHours: hours,
             isPaidBankHoliday: paid,
           );
-          final valid = hours == null || (hours.isFinite && hours >= 0);
+          final valid =
+              hours == null || (hours.isFinite && hours >= 0 && hours <= 24);
           expect(result.isValid, valid);
           if (valid) {
             expect(result.totalHours, hours ?? 0);
@@ -195,7 +359,9 @@ void main() {
       await tester.ensureVisible(hoursField);
       await tester.enterText(hoursField, '7.5');
       await select(tester, 'bankHoliday');
-      expect(text(tester), '');
+      expect(text(tester), '7.5');
+      await select(tester, 'holiday');
+      expect(text(tester), '7.5');
       await select(tester, 'workDay');
       expect(hoursField, findsNothing);
       expect(find.text('Start time'), findsOneWidget);

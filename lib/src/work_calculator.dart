@@ -124,12 +124,12 @@ abstract final class WorkCalculator {
         entryType == 'bankHoliday' ||
         entryType == 'BankHoliday') {
       final totalHours = holidayHours ?? 0;
-      if (!totalHours.isFinite || totalHours < 0) {
+      if (!totalHours.isFinite || totalHours < 0 || totalHours > 24) {
         return const WorkCalculation(
           totalHours: 0,
           wages: 0,
           totalPay: 0,
-          error: 'Enter valid hours of zero or more.',
+          error: 'Enter valid hours from 0 to 24.',
         );
       }
       final paid = entryType == 'Holiday' || isPaidBankHoliday;

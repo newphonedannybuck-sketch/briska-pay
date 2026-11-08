@@ -178,8 +178,8 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
 
   String? get _hoursError {
     final hours = _holidayHours;
-    return hours != null && (!hours.isFinite || hours < 0)
-        ? 'Enter valid hours of zero or more.'
+    return hours != null && (!hours.isFinite || hours < 0 || hours > 24)
+        ? 'Enter valid hours from 0 to 24.'
         : null;
   }
 
@@ -307,7 +307,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       text: entry?.deductionReason ?? '',
     );
     _holidayHoursController = TextEditingController(
-      text: entry != null && _hasHolidayHours
+      text: entry != null && _hasHolidayHours && entry.totalHours != 0
           ? entry.totalHours.toString()
           : '',
     );
@@ -390,7 +390,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       return;
     }
     setState(() {
-      _holidayHoursController.clear();
+      if (!_hasHolidayHours || (value != 'Holiday' && value != 'bankHoliday')) {
+        _holidayHoursController.clear();
+      }
       _entryType = value;
       if (value == 'Holiday') {
         _rateType = 'primary';
@@ -510,7 +512,8 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
         setState(() {
           _editingEntryId = existing.id;
           _entryType = existing.entryType;
-          _holidayHoursController.text = _hasHolidayHours
+          _holidayHoursController.text =
+              _hasHolidayHours && existing.totalHours != 0
               ? existing.totalHours.toString()
               : '';
           _isPaidSickDay = existing.isPaidSickDay;
