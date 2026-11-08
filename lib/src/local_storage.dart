@@ -25,6 +25,14 @@ final class LocalRestoreRollbackException implements Exception {
   String toString() => 'The restore rollback could not be completed.';
 }
 
+final class LocalRestoreRecoveryRequiredException implements Exception {
+  const LocalRestoreRecoveryRequiredException();
+
+  @override
+  String toString() =>
+      'Saved data recovery could not be completed. Please retry.';
+}
+
 sealed class LocalDataLoadException implements Exception {
   const LocalDataLoadException(this.dataSet);
 
@@ -215,6 +223,37 @@ class LocalStorage {
   static Future<void> saveBetaChecklist(Set<String> completedItems) {
     final sortedItems = completedItems.toList()..sort();
     return _preferences.setStringList(_betaChecklistKey, sortedItems);
+  }
+
+  /// Replays an unfinished restore's raw snapshot. Call before normal data use;
+  /// callers must exclude concurrent dataset mutations during recovery.
+  static Future<void> recoverPendingRestore() async {
+    try {
+      final encoded = await _preferences.getString(_RestoreJournal.storageKey);
+      if (encoded == null) return;
+      final snapshot = _RestoreJournal.decode(encoded).original;
+      if (!await _rollbackRestore(snapshot)) {
+        throw const LocalRestoreRecoveryRequiredException();
+      }
+      final settings = await _preferences.getString(_settingsKey);
+      final entries = await _preferences.getString(_entriesKey);
+      final exports = await _preferences.getString(_exportsKey);
+      final version = await _preferences.getInt(_dataVersionKey);
+      if (settings != snapshot.settings ||
+          entries != snapshot.entries ||
+          exports != snapshot.exports ||
+          version != snapshot.dataVersion ||
+          await _preferences.getString(_RestoreJournal.storageKey) != encoded) {
+        throw const LocalRestoreRecoveryRequiredException();
+      }
+      await _preferences.remove(_RestoreJournal.storageKey);
+      if (await _preferences.getString(_RestoreJournal.storageKey) != null) {
+        throw const LocalRestoreRecoveryRequiredException();
+      }
+    } catch (_) {
+      // Never attach raw storage errors or journal contents to a UI exception.
+      throw const LocalRestoreRecoveryRequiredException();
+    }
   }
 
   static Future<void> replaceAll({
