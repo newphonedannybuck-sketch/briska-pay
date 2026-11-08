@@ -412,6 +412,23 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         generation != _entryDataGeneration) {
       return false;
     }
+    final validation = WorkCalculator.calculate(
+      startTime: entry.startTime,
+      finishTime: entry.finishTime,
+      breakMinutes: entry.entryType == 'WorkDay' ? entry.breakMinutes : 0,
+      hourlyRate: entry.hourlyRateUsed,
+      rateType: entry.rateType,
+      dailyAllowance: entry.dailyAllowance,
+      jobUplift: entry.jobUplift,
+      entryType: entry.entryType,
+      isPaidSickDay: entry.isPaidSickDay,
+      isPaidBankHoliday: entry.isPaidBankHoliday,
+      deductionAmount: entry.deductionAmount,
+      holidayHours: entry.totalHours,
+    );
+    if (!validation.isValid) {
+      return false;
+    }
     final calculatedEntry = WorkCalculator.recalculateEntry(entry);
     final updatedEntries = List<WorkEntry>.of(_entries);
     final index = updatedEntries.indexWhere(

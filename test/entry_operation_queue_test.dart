@@ -360,4 +360,40 @@ void main() {
       hasLength(3),
     );
   });
+  testWidgets('invalid recalculation cannot overwrite historical earnings', (
+    tester,
+  ) async {
+    final historical = WorkEntry(
+      id: 'historical-holiday',
+      entryType: 'Holiday',
+      date: DateTime(2026, 7, 10),
+      siteName: '',
+      startTime: '',
+      finishTime: '',
+      breakMinutes: 0,
+      hourlyRateUsed: 20,
+      dailyAllowance: 0,
+      jobUplift: 0,
+      totalHours: 25,
+      wages: 500,
+      totalPay: 500,
+      notes: '',
+    );
+
+    await tester.pumpWidget(BriskaApp(initialEntries: [historical]));
+    await tester.pumpAndSettle();
+
+    final save = await saveCallback(tester);
+    var writes = 0;
+    LocalStorage.saveEntriesOverride = (_) async {
+      writes++;
+    };
+
+    final result = await save(historical);
+    await tester.pump();
+
+    expect(result, isFalse);
+    expect(writes, 0);
+    expect(visibleEntries(tester).single.toJson(), historical.toJson());
+  });
 }
