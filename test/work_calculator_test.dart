@@ -3,6 +3,61 @@ import 'package:briska/src/models.dart';
 import 'package:briska/src/work_calculator.dart';
 
 void main() {
+  for (final finish in ['12:00', '12:01']) {
+    test(
+      'overnight 20:00 to $finish enforces elapsed 16-hour limit before breaks',
+      () {
+        final result = WorkCalculator.calculate(
+          startTime: '20:00',
+          finishTime: finish,
+          breakMinutes: 60,
+          hourlyRate: 20,
+          dailyAllowance: 0,
+          jobUplift: 0,
+        );
+        expect(result.isValid, finish == '12:00');
+        if (finish == '12:00') {
+          expect(result.totalHours, 15);
+          expect(result.wages, 300);
+        } else {
+          expect(result.error, 'A work period cannot exceed 16 hours.');
+        }
+      },
+    );
+  }
+  for (final value in ['000', '0000', '00:00', '0:00']) {
+    test('midnight $value normalizes and calculates', () {
+      expect(WorkCalculator.normalizeTime(value), '00:00');
+      final result = WorkCalculator.calculate(
+        startTime: '23:00',
+        finishTime: value,
+        breakMinutes: 0,
+        hourlyRate: 20,
+        dailyAllowance: 0,
+        jobUplift: 0,
+      );
+      expect(result.isValid, isTrue);
+      expect(result.totalHours, 1);
+      expect(result.wages, 20);
+    });
+  }
+  for (final value in ['24:00', '12:60', '2360', '7:99']) {
+    test('invalid time $value cannot calculate as start or finish', () {
+      expect(WorkCalculator.normalizeTime(value), isNull);
+      for (final start in [true, false]) {
+        final result = WorkCalculator.calculate(
+          startTime: start ? value : '08:00',
+          finishTime: start ? '16:00' : value,
+          breakMinutes: 0,
+          hourlyRate: 20,
+          dailyAllowance: 0,
+          jobUplift: 0,
+        );
+        expect(result.isValid, isFalse);
+        expect(result.error, 'Enter time like 08:00, 17:30 or 0730');
+      }
+    });
+  }
   test('Primary rate can calculate hours and wages with manual allowance', () {
     final result = WorkCalculator.calculate(
       startTime: '08:00',

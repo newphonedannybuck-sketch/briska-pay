@@ -159,7 +159,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
   double _deductionAmount = 0;
   late String _startTime;
   late String _finishTime;
-  late int _breakMinutes;
+  late String _breakInput;
+  int get _breakMinutes =>
+      _breakInput.trim().isEmpty ? 0 : (int.tryParse(_breakInput.trim()) ?? -1);
   late DateTime _date;
   String? _editingEntryId;
   late final TextEditingController _siteController;
@@ -199,7 +201,9 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     site: _siteController.text.trim(),
     start: WorkCalculator.normalizeTime(_startTime) ?? _startTime,
     finish: WorkCalculator.normalizeTime(_finishTime) ?? _finishTime,
-    breakMinutes: _breakMinutes,
+    breakMinutes: _breakInput.trim().isEmpty
+        ? 0
+        : int.tryParse(_breakInput.trim()) ?? _breakInput.trim(),
     rateType: _rateType,
     rate: _selectedRate,
     allowance: _appliedAllowance,
@@ -294,7 +298,8 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     _deductionAmount = entry?.deductionAmount ?? 0;
     _startTime = entry?.startTime ?? preferences.defaultStartTime;
     _finishTime = entry?.finishTime ?? preferences.defaultFinishTime;
-    _breakMinutes = entry?.breakMinutes ?? preferences.defaultBreakMinutes;
+    _breakInput = (entry?.breakMinutes ?? preferences.defaultBreakMinutes)
+        .toString();
     _date = entry?.date ?? widget.initialDate ?? DateTime.now();
     _siteController = TextEditingController(text: entry?.siteName ?? '');
     _notesController = TextEditingController(text: entry?.notes ?? '');
@@ -355,20 +360,30 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     super.dispose();
   }
 
-  WorkCalculation get _calculation => WorkCalculator.calculate(
-    startTime: _startTime,
-    finishTime: _finishTime,
-    breakMinutes: _breakMinutes,
-    hourlyRate: _selectedRate,
-    rateType: _rateType,
-    dailyAllowance: _appliedAllowance,
-    jobUplift: _jobUplift,
-    entryType: _entryType,
-    isPaidSickDay: _isPaidSickDay,
-    isPaidBankHoliday: _isPaidBankHoliday,
-    deductionAmount: _deductionAmount,
-    holidayHours: _hasHolidayHours ? _holidayHours : null,
-  );
+  WorkCalculation get _calculation =>
+      _entryType == 'WorkDay' &&
+          _breakInput.trim().isNotEmpty &&
+          int.tryParse(_breakInput.trim()) == null
+      ? const WorkCalculation(
+          totalHours: 0,
+          wages: 0,
+          totalPay: 0,
+          error: 'Enter break duration in whole minutes.',
+        )
+      : WorkCalculator.calculate(
+          startTime: _startTime,
+          finishTime: _finishTime,
+          breakMinutes: _breakMinutes,
+          hourlyRate: _selectedRate,
+          rateType: _rateType,
+          dailyAllowance: _appliedAllowance,
+          jobUplift: _jobUplift,
+          entryType: _entryType,
+          isPaidSickDay: _isPaidSickDay,
+          isPaidBankHoliday: _isPaidBankHoliday,
+          deductionAmount: _deductionAmount,
+          holidayHours: _hasHolidayHours ? _holidayHours : null,
+        );
 
   void _selectEntryType(String value) {
     if (_entryType == value || (_isBankHoliday && value == 'bankHoliday')) {
@@ -509,7 +524,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
           _deductionReasonController.text = existing.deductionReason;
           _startTime = existing.startTime;
           _finishTime = existing.finishTime;
-          _breakMinutes = existing.breakMinutes;
+          _breakInput = existing.breakMinutes.toString();
           _date = existing.date;
           _siteController.text = existing.siteName;
           _notesController.text = existing.notes;
@@ -712,15 +727,10 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             _LabeledField(
                               label: 'Break minutes',
                               hint: 'Enter minutes',
-                              initialValue: _breakMinutes.toString(),
+                              initialValue: _breakInput,
                               keyboardType: TextInputType.number,
                               onChanged: (value) {
-                                final text = value.trim();
-                                setState(
-                                  () => _breakMinutes = text.isEmpty
-                                      ? 0
-                                      : (int.tryParse(text) ?? -1),
-                                );
+                                setState(() => _breakInput = value);
                               },
                             ),
                             if (!_calculation.isValid) ...[
@@ -1581,6 +1591,7 @@ class _TimeInputFieldState extends State<_TimeInputField> {
         keyboardType: TextInputType.datetime,
         decoration: InputDecoration(
           hintText: widget.hint,
+          helperText: '24-hour time (e.g. 17:30)',
           suffixIcon: IconButton(
             tooltip: 'Pick time',
             icon: const Icon(Icons.schedule_rounded, size: 20),

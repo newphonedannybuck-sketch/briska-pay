@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:briska/src/briska_app.dart';
 import 'package:briska/src/models.dart';
+import 'package:briska/src/local_storage.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,13 +26,24 @@ void main() {
     notes: '',
   );
 
-  Finder timeField(int index) => find
-      .byWidgetPredicate(
-        (widget) =>
-            widget is TextField &&
-            widget.keyboardType == TextInputType.datetime,
-      )
-      .at(index);
+  Finder timeField(int index) => find.descendant(
+    of: find.ancestor(
+      of: find.text(index == 0 ? 'Start time' : 'Finish time'),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Column &&
+            w.children.any(
+              (child) =>
+                  child is TextField &&
+                  child.keyboardType == TextInputType.datetime,
+            ),
+      ),
+    ),
+    matching: find.byType(TextField),
+  );
+  Finder breakField() => find.byWidgetPredicate(
+    (w) => w is TextField && w.decoration?.hintText == 'Enter minutes',
+  );
   Finder siteField() => find.byWidgetPredicate(
     (widget) =>
         widget is TextField &&
@@ -43,6 +57,7 @@ void main() {
   Future<void> openForm(
     WidgetTester tester, {
     List<WorkEntry> entries = const [],
+    WorkEntry? initialEntry,
     Future<bool> Function(WorkEntry)? onSave,
   }) async {
     await tester.pumpWidget(
@@ -60,6 +75,7 @@ void main() {
                       ),
                       savedEntries: entries,
                       initialDate: date,
+                      initialEntry: initialEntry,
                       onSave: onSave ?? (_) async => false,
                     ),
                   ),
@@ -73,8 +89,175 @@ void main() {
     );
     await tester.tap(find.text('Open form'));
     await tester.pumpAndSettle();
-    await tester.enterText(siteField(), 'New site');
+    if (initialEntry == null) await tester.enterText(siteField(), 'New site');
     await tester.pump();
+  }
+
+  for (final input in ['1230', '2130']) {
+    testWidgets('finish typing $input preserves cursor and selection', (
+      tester,
+    ) async {
+      await openForm(tester);
+      await tester.showKeyboard(timeField(1));
+      for (var length = 0; length <= input.length; length++) {
+        final value = input.substring(0, length);
+        tester.testTextInput.updateEditingValue(
+          TextEditingValue(
+            text: value,
+            selection: TextSelection.collapsed(offset: length),
+          ),
+        );
+        await tester.pump();
+        expect(controller(tester, 1).text, value);
+        expect(controller(tester, 1).selection.baseOffset, length);
+      }
+      tester.testTextInput.updateEditingValue(
+        TextEditingValue(
+          text: input,
+          selection: const TextSelection(baseOffset: 0, extentOffset: 2),
+        ),
+      );
+      await tester.pump();
+      expect(
+        controller(tester, 1).selection,
+        const TextSelection(baseOffset: 0, extentOffset: 2),
+      );
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: '2230',
+          selection: TextSelection.collapsed(offset: 2),
+        ),
+      );
+      await tester.pump();
+      expect(controller(tester, 1).text, '2230');
+      expect(controller(tester, 1).selection.baseOffset, 2);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(controller(tester, 1).text, '22:30');
+    });
+  }
+
+  for (final input in ['30.5', 'bad', '-1', '480', '481']) {
+    testWidgets(
+      'break $input rejects save with the correct reason and permits correction',
+      (tester) async {
+        WorkEntry? saved;
+        await openForm(
+          tester,
+          onSave: (entry) async {
+            saved = entry;
+            return false;
+          },
+        );
+        await tester.enterText(timeField(0), '08:00');
+        await tester.enterText(timeField(1), '16:00');
+        await tester.enterText(breakField(), input);
+        saveButton(tester).onPressed!();
+        await tester.pumpAndSettle();
+        expect(saved, isNull);
+        final message = ['30.5', 'bad'].contains(input)
+            ? 'Enter break duration in whole minutes.'
+            : input == '-1'
+            ? 'Break minutes cannot be negative.'
+            : 'Break must be shorter than the work period.';
+        expect(find.text(message), findsWidgets);
+        expect(tester.widget<TextField>(breakField()).controller!.text, input);
+        await tester.enterText(breakField(), '30');
+        saveButton(tester).onPressed!();
+        await tester.pumpAndSettle();
+        expect(saved!.breakMinutes, 30);
+        expect(saved!.totalHours, 7.5);
+        expect(saved!.wages, 150);
+      },
+    );
+  }
+
+  testWidgets(
+    'manual overnight values survive storage reload and editor reopening',
+    (tester) async {
+      final previous = SharedPreferencesAsyncPlatform.instance;
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
+      addTearDown(() => SharedPreferencesAsyncPlatform.instance = previous);
+      await openForm(
+        tester,
+        onSave: (entry) async {
+          await LocalStorage.saveEntries([entry]);
+          return true;
+        },
+      );
+      await tester.enterText(timeField(0), '2130');
+      await tester.enterText(timeField(1), '530');
+      saveButton(tester).onPressed!();
+      await tester.pumpAndSettle();
+      final loaded = (await LocalStorage.loadEntries()).single;
+      expect(loaded.startTime, '21:30');
+      expect(loaded.finishTime, '05:30');
+      expect(loaded.totalHours, 7.5);
+      expect(loaded.wages, 150);
+      await openForm(tester, initialEntry: loaded);
+      expect(controller(tester, 0).text, '21:30');
+      expect(controller(tester, 1).text, '05:30');
+      expect(tester.widget<TextField>(breakField()).controller!.text, '30');
+    },
+  );
+
+  testWidgets('Work Day round trip retains both entered times', (tester) async {
+    await openForm(tester);
+    await tester.enterText(timeField(0), '2130');
+    await tester.enterText(timeField(1), '0530');
+    await tester.ensureVisible(find.byKey(const ValueKey('day-type-holiday')));
+    await tester.tap(find.byKey(const ValueKey('day-type-holiday')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('day-type-workDay')));
+    await tester.pumpAndSettle();
+    expect(controller(tester, 0).text, '21:30');
+    expect(controller(tester, 1).text, '05:30');
+  });
+
+  for (final cancel in [false, true]) {
+    testWidgets(
+      'finish picker cancel=$cancel preserves correct submitted time',
+      (tester) async {
+        WorkEntry? saved;
+        await openForm(
+          tester,
+          onSave: (entry) async {
+            saved = entry;
+            return false;
+          },
+        );
+        await tester.enterText(timeField(1), '1730');
+        final picker = find.descendant(
+          of: find
+              .ancestor(of: timeField(1), matching: find.byType(Column))
+              .first,
+          matching: find.byTooltip('Pick time'),
+        );
+        await tester.ensureVisible(picker);
+        await tester.tap(picker);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.keyboard_outlined));
+        await tester.pumpAndSettle();
+        Finder pickerInput(String label) => find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.label == label,
+          ),
+          matching: find.byType(TextField),
+        );
+        final hour = pickerInput('Hour');
+        final minute = pickerInput('Minute');
+        await tester.enterText(hour, '18');
+        await tester.enterText(minute, '45');
+        await tester.tap(find.text(cancel ? 'Cancel' : 'OK'));
+        await tester.pumpAndSettle();
+        expect(controller(tester, 1).text, cancel ? '17:30' : '18:45');
+        saveButton(tester).onPressed!();
+        await tester.pumpAndSettle();
+        expect(saved!.finishTime, cancel ? '17:30' : '18:45');
+        expect(saved!.totalHours, cancel ? 9 : 10.25);
+      },
+    );
   }
 
   testWidgets(
