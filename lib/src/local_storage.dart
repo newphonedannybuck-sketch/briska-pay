@@ -48,6 +48,29 @@ final class LocalDataReadException extends LocalDataLoadException {
 class LocalStorage {
   LocalStorage._();
 
+  // Pure codec seams: no preferences are read or written by these helpers.
+  @visibleForTesting
+  static String get restoreJournalKeyForTesting => _RestoreJournal.storageKey;
+
+  @visibleForTesting
+  static String encodeRestoreJournalForTesting({
+    required String? settings,
+    required String? workEntries,
+    required String? exportRecords,
+    required int? dataVersion,
+  }) => _RestoreJournal(
+    _RestoreSnapshot(
+      settings: settings,
+      entries: workEntries,
+      exports: exportRecords,
+      dataVersion: dataVersion,
+    ),
+  ).encode();
+
+  @visibleForTesting
+  static String roundTripRestoreJournalForTesting(String encoded) =>
+      _RestoreJournal.decode(encoded).encode();
+
   static const _entriesKey = 'work_entries_v1';
   static const _settingsKey = 'app_settings_v1';
   static const _exportsKey = 'export_records_v1';
@@ -294,4 +317,86 @@ final class _RestoreSnapshot {
   final String? entries;
   final String? exports;
   final int? dataVersion;
+}
+
+// Internal undo-journal format, independent of public backups and data versions.
+final class _RestoreJournal {
+  const _RestoreJournal(this.original);
+
+  static const storageKey = 'briska_restore_journal';
+  static const version = 1;
+  final _RestoreSnapshot original;
+
+  String encode() => jsonEncode({
+    'journalVersion': version,
+    'original': {
+      'settings': original.settings,
+      'workEntries': original.entries,
+      'exportRecords': original.exports,
+      'dataVersion': original.dataVersion,
+    },
+  });
+
+  static _RestoreJournal decode(String encoded) {
+    Never invalid() => throw const FormatException('Invalid restore journal.');
+    Object? decoded;
+    try {
+      decoded = jsonDecode(encoded);
+    } on FormatException {
+      invalid();
+    }
+    // jsonDecode otherwise silently accepts duplicate keys (last value wins).
+    // Tokenize only the outer JSON, never the serialized dataset strings.
+    final tokens = RegExp(
+      r'"(?:[^"\\]|\\.)*"|[{}\[\]:]',
+    ).allMatches(encoded).map((m) => m[0]!).toList();
+    final objects = <Set<String>?>[];
+    for (var i = 0; i < tokens.length; i++) {
+      final token = tokens[i];
+      if (token == '{') {
+        objects.add(<String>{});
+      } else if (token == '[') {
+        objects.add(null);
+      } else if (token == '}' || token == ']') {
+        objects.removeLast();
+      } else if (token.startsWith('"') &&
+          i + 1 < tokens.length &&
+          tokens[i + 1] == ':') {
+        if (!objects.last!.add(jsonDecode(token) as String)) invalid();
+      }
+    }
+    bool keys(Object? value, Set<String> expected) =>
+        value is Map<String, dynamic> &&
+        value.length == expected.length &&
+        expected.every(value.containsKey);
+    if (!keys(decoded, {'journalVersion', 'original'})) invalid();
+    final root = decoded as Map<String, dynamic>;
+    if (root['journalVersion'] is! int || root['journalVersion'] != version) {
+      invalid();
+    }
+    final snapshot = root['original'];
+    if (!keys(snapshot, {
+      'settings',
+      'workEntries',
+      'exportRecords',
+      'dataVersion',
+    })) {
+      invalid();
+    }
+    final fields = snapshot as Map<String, dynamic>;
+    for (final key in ['settings', 'workEntries', 'exportRecords']) {
+      if (fields[key] != null && fields[key] is! String) invalid();
+    }
+    if (fields['dataVersion'] != null && fields['dataVersion'] is! int) {
+      invalid();
+    }
+    return _RestoreJournal(
+      _RestoreSnapshot(
+        settings: fields['settings'] as String?,
+        entries: fields['workEntries'] as String?,
+        exports: fields['exportRecords'] as String?,
+        dataVersion: fields['dataVersion'] as int?,
+      ),
+    );
+  }
 }
