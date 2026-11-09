@@ -702,6 +702,20 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     if (!mounted || !isCurrent()) return;
     try {
       final file = await BriskaBackupService.pickBackupFile();
+      // Android may return the selected file before Flutter resumes.
+      // Wait briefly for foreground restoration, but never bypass App Lock.
+      if (file != null && mounted && !_foreground) {
+        final deadline = DateTime.now().add(const Duration(seconds: 5));
+        while (mounted &&
+            !_foreground &&
+            !_restoreRecoveryRequired &&
+            _lockState == AppLockInitializationState.unlocked &&
+            _lockSession == session &&
+            _entryDataGeneration == generation &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      }
       if (!mounted || !isCurrent()) return;
       if (file == null) {
         ScaffoldMessenger.of(

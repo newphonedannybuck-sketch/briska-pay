@@ -537,4 +537,38 @@ void main() {
       },
     );
   }
+
+  testWidgets('restore picker returns before app resumes', (tester) async {
+    final settings = await open(tester);
+
+    final operation = settings.onRestoreBackup();
+    await tester.pump();
+    expect(pickerCalls, 1);
+
+    // Android may deliver the selected file while Flutter is inactive.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    pickerGate.complete([input.path]);
+    await tester.pump();
+
+    // The app resumes without an App Lock timeout.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+    await pumpUntil(
+      tester,
+      () => find.text('Restore Briska Pay backup?').evaluate().isNotEmpty,
+    );
+
+    expect(find.text('Restore Briska Pay backup?'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Cancel'),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await operation;
+    await unchanged();
+  });
 }
