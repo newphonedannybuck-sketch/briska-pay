@@ -59,6 +59,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   bool _startupDataIsCorrupt = false;
   bool _restoreRecoveryRequired = false;
   bool _restoreInProgress = false;
+  Future<void>? _storedStateLoad;
   Future<void> _entryOperationQueue = Future<void>.value();
   int _entryDataGeneration = 0;
   int _preferencesSaveRevision = 0;
@@ -266,9 +267,17 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _loadStoredState() async {
+  Future<void> _loadStoredState() {
+    return _storedStateLoad ??= _queueEntryOperation(
+      _reconcileStoredState,
+    ).whenComplete(() => _storedStateLoad = null);
+  }
+
+  Future<void> _reconcileStoredState() async {
     if (kDebugMode) debugPrint('storage initialisation started');
     try {
+      // Resolve the transaction before parsing or migrating any dataset.
+      await LocalStorage.recoverPendingRestore();
       final results = await Future.wait([
         LocalStorage.loadEntries(),
         LocalStorage.loadSettings(),
@@ -277,6 +286,9 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       if (kDebugMode) debugPrint('storage initialisation completed');
       if (!mounted) return;
       setState(() {
+        _entryDataGeneration++;
+        _preferencesSaveRevision++;
+        _index = 0;
         _entries = results[0] as List<WorkEntry>;
         _preferences = results[1] as AppSettings;
         _exportRecords = results[2] as List<ExportedFileRecord>;
@@ -295,12 +307,28 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         debugPrintStack(stackTrace: stackTrace);
       }
       if (!mounted) return;
+      if (error is LocalRestoreRecoveryRequiredException) {
+        _requireRestoreRecovery(error);
+      }
       setState(() {
         _startupError = error.toString();
         _startupDataIsCorrupt = error is LocalDataCorruptionException;
         _storedStateLoaded = true;
       });
     }
+  }
+
+  void _requireRestoreRecovery(Object error) {
+    if (!mounted) return;
+    // Invalidate captured callbacks before the operation queue can advance.
+    setState(() {
+      _entryDataGeneration++;
+      _preferencesSaveRevision++;
+      _restoreRecoveryRequired = true;
+      _startupError = error.toString();
+      _startupDataIsCorrupt = false;
+    });
+    _dismissRoutesForAppLock();
   }
 
   // Include both snapshot construction and the UI commit in the queue.
@@ -348,7 +376,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       _queueEntryOperation(_resetLocalDataInQueue);
 
   Future<void> _resetLocalDataInQueue() async {
-    if (!mounted) return;
+    if (!mounted || _restoreRecoveryRequired) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -387,6 +415,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
   }
 
   void _showAddDay([WorkEntry? entry, DateTime? initialDate]) {
+    if (_restoreRecoveryRequired) return;
+    final generation = _entryDataGeneration;
     Navigator.of(context).push(
       _BriskaPageRoute(
         child: AddWorkDayScreen(
@@ -394,15 +424,14 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           savedEntries: _entries,
           initialEntry: entry,
           initialDate: initialDate,
-          onSave: _saveEntry,
+          onSave: (entry) => _saveEntry(entry, generation),
           securityDismissal: _editorSecurityDismissal,
         ),
       ),
     );
   }
 
-  Future<bool> _saveEntry(WorkEntry entry) {
-    final generation = _entryDataGeneration;
+  Future<bool> _saveEntry(WorkEntry entry, int generation) {
     return _queueEntryOperation(() => _saveEntryInQueue(entry, generation));
   }
 
@@ -456,8 +485,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _deleteEntry(WorkEntry entry) async {
-    final generation = _entryDataGeneration;
+  Future<void> _deleteEntry(WorkEntry entry, int generation) async {
+    if (_restoreRecoveryRequired || generation != _entryDataGeneration) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -620,6 +649,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
 
   bool _backupSessionIsCurrent(int session, int generation) =>
       mounted &&
+      !_restoreRecoveryRequired &&
       _foreground &&
       _lockState == AppLockInitializationState.unlocked &&
       _lockSession == session &&
@@ -746,7 +776,12 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         entries: preview.data.workEntries,
         exportRecords: preview.data.exportRecords,
       );
-      if (!mounted || !isCurrent()) return;
+      if (!mounted) return;
+      if (!isCurrent()) {
+        // Commit may finish while locking. Never resume with the old datasets.
+        _requireRestoreRecovery(const LocalRestoreRecoveryRequiredException());
+        return;
+      }
       _entryDataGeneration++;
       _preferencesSaveRevision++;
       setState(() {
@@ -762,14 +797,11 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Briska Pay backup restored.')),
       );
+    } on LocalRestoreRecoveryRequiredException catch (error) {
+      _requireRestoreRecovery(error);
     } on LocalRestoreRollbackException catch (error) {
       if (kDebugMode) debugPrint('restore rollback failed');
-      if (!mounted) return;
-      setState(() {
-        _startupError = error.toString();
-        _startupDataIsCorrupt = false;
-        _restoreRecoveryRequired = true;
-      });
+      _requireRestoreRecovery(error);
     } on BriskaBackupException catch (error) {
       if (!mounted || !isCurrent()) return;
       ScaffoldMessenger.of(
@@ -960,7 +992,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         settings: _preferences,
         onEdit: _showAddDay,
         onAddDate: (date) => _showAddDay(null, date),
-        onDelete: _deleteEntry,
+        onDelete: (entry) => _deleteEntry(entry, exportGeneration),
       ),
       ProfessionalReportsScreen(entries: _entries, settings: _preferences),
       ExportScreen(

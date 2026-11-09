@@ -256,6 +256,8 @@ class LocalStorage {
     }
   }
 
+  static bool _restoreTransactionActive = false;
+
   static Future<void> replaceAll({
     required AppSettings settings,
     required List<WorkEntry> entries,
@@ -264,36 +266,132 @@ class LocalStorage {
     // storage failure. Check again after the last write before committing.
     void Function()? validateOperation,
   }) async {
-    late final _RestoreSnapshot original;
-    try {
-      original = _RestoreSnapshot(
-        settings: await _preferences.getString(_settingsKey),
-        entries: await _preferences.getString(_entriesKey),
-        exports: await _preferences.getString(_exportsKey),
-        dataVersion: await _preferences.getInt(_dataVersionKey),
-      );
-    } catch (_) {
+    if (_restoreTransactionActive) {
       throw const LocalRestoreException();
     }
-
+    _restoreTransactionActive = true;
     try {
-      await _beforeRestoreWrite(RestoreWriteStage.settings);
-      validateOperation?.call();
-      await saveSettings(settings);
-      await _beforeRestoreWrite(RestoreWriteStage.workEntries);
-      validateOperation?.call();
-      await saveEntries(entries);
-      await _beforeRestoreWrite(RestoreWriteStage.exportLibrary);
-      validateOperation?.call();
-      await saveExportRecords(exportRecords);
-      await _beforeRestoreWrite(RestoreWriteStage.dataVersion);
-      validateOperation?.call();
-      await markCurrentDataVersion();
-      validateOperation?.call();
-    } catch (_) {
-      if (!await _rollbackRestore(original)) {
-        throw const LocalRestoreRollbackException();
+      late final _RestoreSnapshot original;
+      try {
+        original = _RestoreSnapshot(
+          settings: await _preferences.getString(_settingsKey),
+          entries: await _preferences.getString(_entriesKey),
+          exports: await _preferences.getString(_exportsKey),
+          dataVersion: await _preferences.getInt(_dataVersionKey),
+        );
+      } catch (_) {
+        throw const LocalRestoreException();
       }
+
+      await _persistRestoreJournal(original);
+
+      try {
+        await _beforeRestoreWrite(RestoreWriteStage.settings);
+        validateOperation?.call();
+        await saveSettings(settings);
+        await _beforeRestoreWrite(RestoreWriteStage.workEntries);
+        validateOperation?.call();
+        await saveEntries(entries);
+        await _beforeRestoreWrite(RestoreWriteStage.exportLibrary);
+        validateOperation?.call();
+        await saveExportRecords(exportRecords);
+        await _beforeRestoreWrite(RestoreWriteStage.dataVersion);
+        validateOperation?.call();
+        await markCurrentDataVersion();
+        validateOperation?.call();
+        await _verifyRestoredData(
+          settings: settings,
+          entries: entries,
+          exportRecords: exportRecords,
+        );
+        final journal = await _preferences.getString(
+          _RestoreJournal.storageKey,
+        );
+        if (journal != _RestoreJournal(original).encode()) {
+          throw const LocalRestoreRecoveryRequiredException();
+        }
+        // No asynchronous boundary between this check and attempting deletion.
+        // Validation failures still belong to the verified rollback path.
+        validateOperation?.call();
+      } catch (_) {
+        try {
+          final journal = await _preferences.getString(
+            _RestoreJournal.storageKey,
+          );
+          if (journal == null ||
+              journal != _RestoreJournal(original).encode()) {
+            throw const LocalRestoreRecoveryRequiredException();
+          }
+          await recoverPendingRestore();
+        } catch (_) {
+          throw const LocalRestoreRollbackException();
+        }
+        throw const LocalRestoreException();
+      }
+
+      // Journal removal is the commit boundary. Never roll back after
+      // attempting removal: it may succeed before reporting an error.
+      try {
+        await _preferences.remove(_RestoreJournal.storageKey);
+        if (await _preferences.getString(_RestoreJournal.storageKey) != null) {
+          throw const LocalRestoreRecoveryRequiredException();
+        }
+      } catch (_) {
+        throw const LocalRestoreRecoveryRequiredException();
+      }
+    } finally {
+      _restoreTransactionActive = false;
+    }
+  }
+
+  static Future<void> _persistRestoreJournal(_RestoreSnapshot original) async {
+    try {
+      final existing = await _preferences.getString(_RestoreJournal.storageKey);
+      if (existing != null) {
+        throw const LocalRestoreRecoveryRequiredException();
+      }
+
+      final encoded = _RestoreJournal(original).encode();
+
+      await _preferences.setString(_RestoreJournal.storageKey, encoded);
+
+      final persisted = await _preferences.getString(
+        _RestoreJournal.storageKey,
+      );
+      if (persisted != encoded) {
+        throw const LocalRestoreRecoveryRequiredException();
+      }
+    } catch (_) {
+      throw const LocalRestoreRecoveryRequiredException();
+    }
+  }
+
+  static Future<void> _verifyRestoredData({
+    required AppSettings settings,
+    required List<WorkEntry> entries,
+    required List<ExportedFileRecord> exportRecords,
+  }) async {
+    try {
+      final expectedSettings = jsonEncode(settings.toJson());
+      final expectedEntries = jsonEncode(
+        entries.map((entry) => entry.toJson()).toList(),
+      );
+      final expectedExports = jsonEncode(
+        exportRecords.map((record) => record.toJson()).toList(),
+      );
+
+      final storedSettings = await _preferences.getString(_settingsKey);
+      final storedEntries = await _preferences.getString(_entriesKey);
+      final storedExports = await _preferences.getString(_exportsKey);
+      final storedVersion = await _preferences.getInt(_dataVersionKey);
+
+      if (storedSettings != expectedSettings ||
+          storedEntries != expectedEntries ||
+          storedExports != expectedExports ||
+          storedVersion != currentDataVersion) {
+        throw const LocalRestoreException();
+      }
+    } catch (_) {
       throw const LocalRestoreException();
     }
   }

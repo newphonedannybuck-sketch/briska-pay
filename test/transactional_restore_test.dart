@@ -177,7 +177,23 @@ void main() {
       find.text("Briska Pay couldn't complete the restore safely"),
       findsOneWidget,
     );
-    expect(find.textContaining('may need recovery'), findsOneWidget);
+    expect(find.textContaining('Changes are blocked'), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Restore backup'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<TextButton>(
+            find.widgetWithText(TextButton, 'Reset local data'),
+          )
+          .onPressed,
+      isNull,
+    );
     expect(find.textContaining('SharedPreferences'), findsNothing);
     expect(find.textContaining('app_settings_v1'), findsNothing);
   });

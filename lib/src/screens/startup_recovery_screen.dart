@@ -45,7 +45,7 @@ class StartupRecoveryScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       restoreRecoveryRequired
-                          ? 'Your existing data may need recovery. Please avoid making further changes and try again.'
+                          ? 'The stored data must be checked before you can continue. Changes are blocked. Tap Retry to recover and reload your saved data.'
                           : dataIsCorrupt
                           ? 'Your saved information appears to be damaged or unreadable. It has not been deleted or replaced.'
                           : 'Your data has not been erased. Try again, restore a backup, or reset this installation after confirmation.',
@@ -71,13 +71,17 @@ class StartupRecoveryScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
-                      onPressed: onRestoreBackup,
+                      onPressed: restoreRecoveryRequired
+                          ? null
+                          : onRestoreBackup,
                       icon: const Icon(Icons.restore_outlined),
                       label: const Text('Restore backup'),
                     ),
                     const SizedBox(height: 10),
                     TextButton.icon(
-                      onPressed: onResetLocalData,
+                      onPressed: restoreRecoveryRequired
+                          ? null
+                          : onResetLocalData,
                       icon: const Icon(Icons.delete_outline_rounded),
                       label: const Text('Reset local data'),
                     ),
@@ -91,4 +95,3 @@ class StartupRecoveryScreen extends StatelessWidget {
     );
   }
 }
-
