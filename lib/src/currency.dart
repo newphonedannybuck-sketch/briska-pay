@@ -36,7 +36,7 @@ class CurrencyConfig {
   factory CurrencyConfig.fromJson(Map<String, dynamic> json) {
     final code = json['code'] as String? ?? 'GBP';
     return CurrencyCatalog.byCode(code).copyWith(
-      symbol: json['symbol'] as String?,
+      symbol: CurrencyCatalog.byCode(code).symbol,
       displayName: json['displayName'] as String?,
       locale: json['locale'] as String?,
       decimalDigits: (json['decimalDigits'] as num?)?.toInt(),
