@@ -5,7 +5,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models.dart';
-import '../app_theme.dart';
+import '../../design_system/briska_colors.dart';
 import '../export_formats.dart';
 import 'export_feedback.dart';
 import 'export_action_overrides.dart';
@@ -307,7 +307,7 @@ class ExportActions {
           ),
           if (record.isAvailable)
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+              style: TextButton.styleFrom(foregroundColor: BriskaColors.danger),
               onPressed: () =>
                   Navigator.pop(dialogContext, _DeleteChoice.fileToo),
               child: const Text('Delete file and remove from library'),
@@ -345,7 +345,7 @@ class ExportActions {
               label: 'Delete export file from device',
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.danger,
+                  backgroundColor: BriskaColors.danger,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () => Navigator.pop(dialogContext, true),

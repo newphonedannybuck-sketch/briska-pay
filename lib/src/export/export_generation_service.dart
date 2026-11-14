@@ -21,7 +21,7 @@ abstract final class ExportGenerationService {
     required DateTime generatedAt,
     required ExportOptions options,
   }) async {
-    // Capture before the first await, including PDF asset loading. Retained
+    // Inputs are captured by the caller before PDF asset loading. Retained
     // screens can receive new settings while the original file is generated.
     final create = actionOverrides?.create;
     if (create != null) return create(exportEntries, settings, format);

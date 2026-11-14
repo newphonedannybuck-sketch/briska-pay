@@ -5,8 +5,9 @@ import 'screens/loading_screen.dart';
 import 'src/ads/ads_consent_coordinator.dart';
 import 'src/ads/ads_service.dart';
 import 'src/app_lock_service.dart';
-import 'src/app_theme.dart';
-import 'src/briska_app.dart';
+import 'design_system/briska_theme.dart';
+import 'src/app/briska_shell.dart';
+import 'src/app/theme_preferences.dart';
 import 'src/models.dart';
 
 void main() {
@@ -67,8 +68,8 @@ class _BriskaAppState extends State<BriskaApp> {
     return MaterialApp(
       title: 'Briska Pay',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: BriskaTheme.light,
+      darkTheme: BriskaTheme.dark,
       themeMode: _themeMode,
       home: widget.showLoadingScreen
           ? LoadingScreen(

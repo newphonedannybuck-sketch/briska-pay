@@ -1,3 +1,4 @@
+import 'export/work_report_schema.dart';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
@@ -9,26 +10,7 @@ import 'models.dart';
 import 'work_calculator.dart';
 
 abstract final class ExcelExportService {
-  static const columns = [
-    'Date',
-    'Site/job',
-    'Day type',
-    'Pay status',
-    'Rate used',
-    'Start time',
-    'Finish time',
-    'Break minutes',
-    'Hours worked',
-    'Hourly rate',
-    'Base pay',
-    'Daily allowance',
-    'Job uplift',
-    'Gross pay',
-    'Deduction',
-    'Deduction reason',
-    'Net pay',
-    'Notes',
-  ];
+  static const columns = WorkReportSchema.columns;
 
   static Uint8List buildWorkbook(
     List<WorkEntry> source, {
@@ -99,15 +81,11 @@ abstract final class ExcelExportService {
         DateCellValue.fromDateTime(entry.date),
         TextCellValue(entry.siteName),
         TextCellValue(
-          entry.entryType == 'SickDay'
-              ? (entry.isPaidSickDay ? 'Paid Sick Day' : 'Unpaid Sick Day')
-              : entry.entryType == 'UnpaidDayOff'
-              ? 'Unpaid day off'
-              : entry.entryType == 'WorkDay'
-              ? 'Work day'
-              : entry.type == EntryType.bankHoliday
-              ? 'Bank Holiday'
-              : 'Holiday',
+          WorkReportSchema.entryTypeLabel(
+            entry.entryType,
+            isPaidSickDay: entry.isPaidSickDay,
+            unknownLabel: 'Holiday',
+          ),
         ),
         TextCellValue(
           entry.type == EntryType.bankHoliday

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import '../design_system/briska_colors.dart';
 import '../design_system/briska_cards.dart';
 import '../design_system/briska_radius.dart';
-import '../design_system/briska_spacing.dart';
 import '../design_system/briska_theme.dart';
-import 'currency.dart';
+import 'presentation_format.dart';
+import 'widgets/shared_ui.dart';
 import 'display_format.dart';
 import 'models.dart';
 import 'pay_schedule.dart';
@@ -57,7 +57,7 @@ class HomeScreen extends StatelessWidget {
         return byDate != 0 ? byDate : b.id.compareTo(a.id);
       });
 
-    return _DashboardPage(
+    return AppPage(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -85,7 +85,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          const _SectionTitle(title: 'Quick actions'),
+          const SectionHeading(title: 'Quick actions'),
           const SizedBox(height: 14),
           _Entrance(
             delay: const Duration(milliseconds: 110),
@@ -97,10 +97,10 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          _SectionTitle(
+          SectionHeading(
             title: 'Recent activity',
             action: 'View all',
-            onAction: onViewEntries,
+            onTap: onViewEntries,
           ),
           const SizedBox(height: 14),
           if (recentEntries.isEmpty)
@@ -389,7 +389,7 @@ class _EarningsHero extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        '${_shortDate(periodStart)} – ${_shortDate(periodEnd)}',
+                        '${formatCompactDate(periodStart)} – ${formatCompactDate(periodEnd)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -416,7 +416,7 @@ class _EarningsHero extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  _money(summary.totalExpectedPay),
+                  formatMoney(summary.totalExpectedPay),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: compact ? 38 : 48,
@@ -448,7 +448,7 @@ class _EarningsHero extends StatelessWidget {
                     _HeroMetric(
                       key: const ValueKey('home-uplift-metric'),
                       label: 'Uplift',
-                      value: _money(summary.totalJobUplift),
+                      value: formatMoney(summary.totalJobUplift),
                     ),
                   ],
                 ),
@@ -595,7 +595,7 @@ class _NextPaydayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     if (payday == null) {
-      return _PremiumCard(
+      return BriskaCard(
         child: Row(
           children: [
             const _DashboardIcon(icon: Icons.event_busy_outlined),
@@ -664,7 +664,7 @@ class _NextPaydayCard extends StatelessWidget {
         ),
       ),
     );
-    return _PremiumCard(
+    return BriskaCard(
       child: largeText
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -918,7 +918,7 @@ class _EntryDetailsSheet extends StatelessWidget {
               _DetailRow(
                 label: _isWork ? 'Hourly Rate' : 'Rate',
                 value:
-                    '${settings.labelForRate(entry.rateType)} · ${_money(entry.hourlyRateUsed)}/hr',
+                    '${settings.labelForRate(entry.rateType)} · ${formatMoney(entry.hourlyRateUsed)}/hr',
               ),
             ],
             if (_isBankHoliday && !entry.isPaidBankHoliday)
@@ -1056,7 +1056,7 @@ class _MoneyRow extends StatelessWidget {
           ),
         ),
         Text(
-          _money(value),
+          formatMoney(value),
           key: ValueKey(
             'entry-details-${label.toLowerCase().replaceAll(' ', '-')}',
           ),
@@ -1083,20 +1083,7 @@ String _longDate(DateTime date) =>
     '${_weekday(date)}, ${date.day} '
     '${_fullMonth(date)} ${date.year}';
 
-String _fullMonth(DateTime date) => const [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-][date.month - 1];
+String _fullMonth(DateTime date) => fullMonthNames[date.month - 1];
 
 String _timeRange(WorkEntry entry) {
   final start =
@@ -1136,7 +1123,7 @@ class _ActivityCard extends StatelessWidget {
             if (context.mounted) onEdit(entry);
           }
         },
-        child: _PremiumCard(
+        child: BriskaCard(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
@@ -1191,7 +1178,7 @@ class _ActivityCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _money(item.totalPay),
+                      formatMoney(item.totalPay),
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -1239,21 +1226,6 @@ class _EmptyActivity extends StatelessWidget {
   );
 }
 
-class _PremiumCard extends StatelessWidget {
-  const _PremiumCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(BriskaSpacing.lg),
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return BriskaCard(padding: padding, child: child);
-  }
-}
-
 class _DashboardIcon extends StatelessWidget {
   const _DashboardIcon({required this.icon});
 
@@ -1269,58 +1241,6 @@ class _DashboardIcon extends StatelessWidget {
     ),
     child: Icon(icon, color: Theme.of(context).colorScheme.primary),
   );
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.action, this.onAction});
-
-  final String title;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-      ),
-      if (action != null) TextButton(onPressed: onAction, child: Text(action!)),
-    ],
-  );
-}
-
-class _DashboardPage extends StatelessWidget {
-  const _DashboardPage({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final horizontal = width < 360
-        ? 16.0
-        : width < 480
-        ? 20.0
-        : BriskaSpacing.pageHorizontal;
-    return SafeArea(
-      bottom: false,
-      child: SingleChildScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: EdgeInsets.fromLTRB(
-          horizontal,
-          BriskaSpacing.lg,
-          horizontal,
-          BriskaSpacing.pageBottom,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: child,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _Entrance extends StatelessWidget {
@@ -1354,34 +1274,9 @@ String _greetingFor(DateTime date) {
   return 'Good evening';
 }
 
-String _money(double value) => CurrencyFormatter.format(value);
+String _shortMonth(DateTime date) => shortMonthNames[date.month - 1];
 
-String _shortDate(DateTime date) => formatCompactDate(date);
-
-String _shortMonth(DateTime date) => const [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-][date.month - 1];
-
-String _weekday(DateTime date) => const [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
-][date.weekday - 1];
+String _weekday(DateTime date) => weekdayNames[date.weekday - 1];
 
 String _entryTitle(WorkEntry entry) {
   if (entry.entryType == 'Holiday') return 'Holiday';

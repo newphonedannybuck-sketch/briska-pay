@@ -1,6 +1,7 @@
+import '../../widgets/detail_text.dart';
 import 'package:flutter/material.dart';
 import '../../models.dart';
-import '../../app_theme.dart';
+import '../../../design_system/briska_colors.dart';
 import '../../currency.dart';
 import '../../display_format.dart';
 import '../../presentation_format.dart';
@@ -113,20 +114,20 @@ class ExportedFileCard extends StatelessWidget {
                 spacing: 18,
                 runSpacing: 9,
                 children: [
-                  _LibraryDetail(label: 'Period', value: record.periodLabel),
-                  _LibraryDetail(label: 'File type', value: _format.fileType),
-                  _LibraryDetail(label: 'Created', value: _date),
-                  _LibraryDetail(
+                  DetailText(label: 'Period', value: record.periodLabel),
+                  DetailText(label: 'File type', value: _format.fileType),
+                  DetailText(label: 'Created', value: _date),
+                  DetailText(
                     label: record.workDays == 1
                         ? 'Day recorded'
                         : 'Days recorded',
                     value: record.workDays.toString(),
                   ),
-                  _LibraryDetail(
+                  DetailText(
                     label: 'Hours',
                     value: formatHoursLabel(record.totalHours),
                   ),
-                  _LibraryDetail(label: 'File size', value: _size),
+                  DetailText(label: 'File size', value: _size),
                 ],
               ),
             ),
@@ -179,7 +180,7 @@ class ExportedFileCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onDelete,
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
+                    foregroundColor: BriskaColors.danger,
                   ),
                   icon: const Icon(Icons.delete_outline_rounded, size: 18),
                   label: const Text('Delete'),
@@ -210,33 +211,6 @@ class _MissingFileBadge extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.w800,
       ),
-    ),
-  );
-}
-
-class _LibraryDetail extends StatelessWidget {
-  const _LibraryDetail({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Text.rich(
-    TextSpan(
-      text: '$label  ',
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        fontSize: 12,
-      ),
-      children: [
-        TextSpan(
-          text: value,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
     ),
   );
 }

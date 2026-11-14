@@ -3,9 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../src/app_theme.dart';
+import '../design_system/briska_colors.dart';
 import '../src/models.dart';
-import '../src/briska_app.dart';
+import '../src/app/briska_shell.dart';
 import '../design_system/briska_theme.dart';
 
 class LoadingScreen extends StatefulWidget {
@@ -83,10 +83,10 @@ class _LoadingScreenState extends State<LoadingScreen>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: AppColors.background,
+        systemNavigationBarColor: BriskaColors.background,
       ),
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: BriskaColors.background,
         body: CustomPaint(
           painter: const _LoadingBackgroundPainter(),
           child: SafeArea(
@@ -177,7 +177,7 @@ class _Wordmark extends StatelessWidget {
           TextSpan(text: 'Bris'),
           TextSpan(
             text: 'ka',
-            style: TextStyle(color: AppColors.primary),
+            style: TextStyle(color: BriskaColors.primary),
           ),
         ],
       ),
@@ -192,18 +192,18 @@ class _DividerRule extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Container(width: 132, height: 2, color: AppColors.primary),
+      Container(width: 132, height: 2, color: BriskaColors.primary),
       const SizedBox(width: 22),
       Container(
         width: 12,
         height: 12,
         decoration: const BoxDecoration(
-          color: AppColors.primary,
+          color: BriskaColors.primary,
           shape: BoxShape.circle,
         ),
       ),
       const SizedBox(width: 22),
-      Container(width: 132, height: 2, color: AppColors.primary),
+      Container(width: 132, height: 2, color: BriskaColors.primary),
     ],
   );
 }
@@ -220,7 +220,7 @@ class _Tagline extends StatelessWidget {
           TextSpan(text: 'Work. Track. '),
           TextSpan(
             text: 'Get Paid.',
-            style: TextStyle(color: AppColors.primary),
+            style: TextStyle(color: BriskaColors.primary),
           ),
         ],
       ),
@@ -286,11 +286,11 @@ class _Dot extends StatelessWidget {
       width: 18,
       height: 18,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: opacity),
+        color: BriskaColors.primary.withValues(alpha: opacity),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: opacity * .35),
+            color: BriskaColors.primary.withValues(alpha: opacity * .35),
             blurRadius: 18,
           ),
         ],
@@ -309,7 +309,7 @@ class _LoadingBackgroundPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [AppColors.background, AppColors.dark, Color(0xFF0D2A1E)],
+        colors: [BriskaColors.background, BriskaColors.dark, Color(0xFF0D2A1E)],
       ).createShader(rect);
     canvas.drawRect(rect, basePaint);
 
@@ -317,13 +317,13 @@ class _LoadingBackgroundPainter extends CustomPainter {
       canvas,
       size,
       top: true,
-      color: AppColors.accent.withValues(alpha: .24),
+      color: BriskaColors.accent.withValues(alpha: .24),
     );
     _drawRibbon(
       canvas,
       size,
       top: false,
-      color: AppColors.primary.withValues(alpha: .22),
+      color: BriskaColors.primary.withValues(alpha: .22),
     );
   }
 
@@ -391,7 +391,7 @@ class _LoadingBackgroundPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.1
-        ..color = AppColors.primary.withValues(alpha: .36),
+        ..color = BriskaColors.primary.withValues(alpha: .36),
     );
   }
 

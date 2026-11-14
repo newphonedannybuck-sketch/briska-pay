@@ -1,3 +1,4 @@
+import 'export/work_report_schema.dart';
 import 'dart:convert';
 
 import 'export_formats.dart';
@@ -6,26 +7,7 @@ import 'models.dart';
 import 'work_calculator.dart';
 
 abstract final class CsvExportService {
-  static const columns = [
-    'Date',
-    'Site/job',
-    'Day type',
-    'Pay status',
-    'Rate used',
-    'Start time',
-    'Finish time',
-    'Break minutes',
-    'Hours worked',
-    'Hourly rate',
-    'Base pay',
-    'Daily allowance',
-    'Job uplift',
-    'Gross pay',
-    'Deduction',
-    'Deduction reason',
-    'Net pay',
-    'Notes',
-  ];
+  static const columns = WorkReportSchema.columns;
 
   static List<int> buildCsv(
     List<WorkEntry> source, {
@@ -109,28 +91,11 @@ abstract final class CsvExportService {
     );
   }
 
-  static String entryTypeLabel(String value, {bool isPaidSickDay = false}) {
-    return switch (value) {
-      'UnpaidDayOff' => 'Unpaid day off',
-      'Holiday' => 'Holiday',
-      'bankHoliday' || 'BankHoliday' => 'Bank Holiday',
-      'SickDay' => isPaidSickDay ? 'Paid Sick Day' : 'Unpaid Sick Day',
-      _ => 'Work day',
-    };
-  }
+  static String entryTypeLabel(String value, {bool isPaidSickDay = false}) =>
+      WorkReportSchema.entryTypeLabel(value, isPaidSickDay: isPaidSickDay);
 
-  static List<String> currencyColumns(String code) => [
-    ...columns.take(9),
-    'Hourly rate ($code)',
-    'Base pay ($code)',
-    'Daily allowance ($code)',
-    'Job uplift ($code)',
-    'Gross pay ($code)',
-    'Deduction ($code)',
-    'Deduction reason',
-    'Net pay ($code)',
-    columns.last,
-  ];
+  static List<String> currencyColumns(String code) =>
+      WorkReportSchema.currencyColumns(code);
 
   static String _row(List<Object?> values) => values.map(_cell).join(',');
 

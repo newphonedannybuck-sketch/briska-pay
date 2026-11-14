@@ -1,6 +1,7 @@
+import 'detail_text.dart';
 import 'package:flutter/material.dart';
 import '../models.dart';
-import '../app_theme.dart';
+import '../../design_system/briska_colors.dart';
 import '../display_format.dart';
 import '../presentation_format.dart';
 import '../work_calculator.dart';
@@ -159,46 +160,43 @@ class WorkEntryCard extends StatelessWidget {
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  _EntryDetail(
+                  DetailText(
                     label: 'Hours worked',
                     value: formatHoursLabel(entry.totalHours),
                   ),
-                  _EntryDetail(
+                  DetailText(
                     label: 'Rate',
                     value: '${formatMoney(entry.hourlyRateUsed)}/hr',
                   ),
-                  _EntryDetail(
+                  DetailText(
                     label: 'Base pay',
                     value: formatMoney(entry.wages),
                   ),
                   if (entry.dailyAllowance != 0)
-                    _EntryDetail(
+                    DetailText(
                       label: 'Daily allowance',
                       value: formatMoney(entry.dailyAllowance),
                     ),
                   if (entry.jobUplift > 0)
-                    _EntryDetail(
+                    DetailText(
                       label: 'Job uplift',
                       value: formatMoney(entry.jobUplift),
                     ),
-                  _EntryDetail(
+                  DetailText(
                     label: 'Estimated gross pay',
                     value: formatMoney(entry.totalPay),
                   ),
                   if (entry.deductionAmount > 0) ...[
-                    _EntryDetail(
+                    DetailText(
                       label: 'Deduction',
                       value: formatMoney(entry.deductionAmount),
                     ),
-                    _EntryDetail(
+                    DetailText(
                       label: 'Final pay',
                       value: formatMoney(entry.netPay),
                     ),
                     if (entry.deductionReason.trim().isNotEmpty)
-                      _EntryDetail(
-                        label: 'Reason',
-                        value: entry.deductionReason,
-                      ),
+                      DetailText(label: 'Reason', value: entry.deductionReason),
                   ],
                 ],
               ),
@@ -220,7 +218,7 @@ class WorkEntryCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onDelete,
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.danger,
+                      foregroundColor: BriskaColors.danger,
                     ),
                     icon: const Icon(Icons.delete_outline_rounded, size: 18),
                     label: const Text('Delete'),
@@ -284,34 +282,6 @@ class _StatusPill extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _EntryDetail extends StatelessWidget {
-  const _EntryDetail({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        text: '$label  ',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontSize: 12,
-        ),
-        children: [
-          TextSpan(
-            text: value,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
       ),
     );
   }

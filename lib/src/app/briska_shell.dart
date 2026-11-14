@@ -13,7 +13,7 @@ import '../ads/ads_consent_coordinator.dart';
 import '../ads/ads_service.dart';
 import '../ads/briska_banner_ad.dart';
 import '../app_lock_service.dart';
-import '../app_theme.dart';
+import '../../design_system/briska_colors.dart';
 import '../backup_service.dart';
 import '../currency.dart';
 import '../local_storage.dart';
@@ -485,7 +485,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
               label: 'Delete day',
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.danger,
+                  backgroundColor: BriskaColors.danger,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () => Navigator.pop(dialogContext, true),

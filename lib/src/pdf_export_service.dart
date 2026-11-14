@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'csv_export_service.dart';
+import 'export/work_report_schema.dart';
 import 'currency.dart';
 import 'display_format.dart';
 import 'export_formats.dart';
@@ -415,6 +415,7 @@ abstract final class PdfExportService {
   );
 
   static ExportTotals calculateTotals(List<WorkEntry> entries) {
+    final summary = WorkCalculator.summarize(entries);
     final workEntries = entries.where((entry) => entry.entryType == 'WorkDay');
     final workDays = workEntries.length;
     final hoursWorked = workEntries.fold(
@@ -429,57 +430,29 @@ abstract final class PdfExportService {
         .fold(0.0, (sum, entry) => sum + entry.wages);
     return ExportTotals(
       workDays: workDays,
-      holidayDays: entries
-          .where((entry) => entry.entryType == 'Holiday')
-          .length,
-      unpaidDays: entries
-          .where((entry) => entry.entryType == 'UnpaidDayOff')
-          .length,
-      paidSickDays: entries
-          .where((entry) => entry.entryType == 'SickDay' && entry.isPaidSickDay)
-          .length,
-      unpaidSickDays: entries
-          .where(
-            (entry) => entry.entryType == 'SickDay' && !entry.isPaidSickDay,
-          )
-          .length,
-      bankHolidayDays: entries
-          .where((entry) => entry.type == EntryType.bankHoliday)
-          .length,
-      paidBankHolidayDays: entries
-          .where(
-            (entry) =>
-                entry.type == EntryType.bankHoliday && entry.isPaidBankHoliday,
-          )
-          .length,
-      unpaidBankHolidayDays: entries
-          .where(
-            (entry) =>
-                entry.type == EntryType.bankHoliday && !entry.isPaidBankHoliday,
-          )
-          .length,
+      holidayDays: summary.holidayDays,
+      unpaidDays: summary.unpaidDays,
+      paidSickDays: summary.paidSickDays,
+      unpaidSickDays: summary.unpaidSickDays,
+      bankHolidayDays: summary.bankHolidayDays,
+      paidBankHolidayDays: summary.paidBankHolidayDays,
+      unpaidBankHolidayDays: summary.unpaidBankHolidayDays,
       holidayHours: entries
           .where((entry) => entry.entryType == 'Holiday')
           .fold(0.0, (sum, entry) => sum + entry.totalHours),
       bankHolidayHours: entries
           .where((entry) => entry.type == EntryType.bankHoliday)
           .fold(0.0, (sum, entry) => sum + entry.totalHours),
-      totalRecordedHours: entries.fold(
-        0.0,
-        (sum, entry) => sum + entry.totalHours,
-      ),
+      totalRecordedHours: summary.totalHours,
       hoursWorked: hoursWorked,
       averageHours: workDays == 0 ? 0 : hoursWorked / workDays,
       primaryPay: primaryPay,
       secondaryPay: secondaryPay,
-      allowances: entries.fold(0.0, (sum, entry) => sum + entry.dailyAllowance),
-      uplifts: entries.fold(0.0, (sum, entry) => sum + entry.jobUplift),
-      grossTotal: entries.fold(0.0, (sum, entry) => sum + entry.totalPay),
-      deductions: entries.fold(
-        0.0,
-        (sum, entry) => sum + entry.deductionAmount,
-      ),
-      netTotal: entries.fold(0.0, (sum, entry) => sum + entry.netPay),
+      allowances: summary.totalDailyAllowance,
+      uplifts: summary.totalJobUplift,
+      grossTotal: summary.totalExpectedPay,
+      deductions: summary.totalDeductions,
+      netTotal: summary.totalNetPay,
     );
   }
 
@@ -627,7 +600,7 @@ abstract final class PdfExportService {
           (entry) => [
             _dateLabel(entry.date),
             entry.siteName.isEmpty ? '-' : entry.siteName,
-            CsvExportService.entryTypeLabel(
+            WorkReportSchema.entryTypeLabel(
               entry.entryType,
               isPaidSickDay: entry.isPaidSickDay,
             ),
