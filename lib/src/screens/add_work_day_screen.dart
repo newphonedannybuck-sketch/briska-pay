@@ -706,7 +706,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: _TimeInputField(
+                                  child: TimeInputField(
                                     label: 'Start time',
                                     hint: '08:00',
                                     initialValue: _startTime,
@@ -716,7 +716,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: _TimeInputField(
+                                  child: TimeInputField(
                                     label: 'Finish time',
                                     hint: '16:30',
                                     initialValue: _finishTime,
@@ -816,7 +816,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                 children: [
                                   const FieldLabel('Hourly rate for this day'),
                                   const SizedBox(height: 8),
-                                  _SelectAllTextFormField(
+                                  SelectAllTextFormField(
                                     key: ValueKey('rate-$_rateType'),
                                     initialValue: _currencyInputValue(
                                       _selectedRate,
@@ -836,7 +836,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                     const SizedBox(height: 14),
                                     const FieldLabel('Daily allowance'),
                                     const SizedBox(height: 8),
-                                    _SelectAllTextFormField(
+                                    SelectAllTextFormField(
                                       key: ValueKey(
                                         'allowance-$_editingEntryId-$_rateType',
                                       ),
@@ -1473,145 +1473,6 @@ class _EarningsSummaryCard extends StatelessWidget {
   }
 }
 
-class _TimeInputField extends StatefulWidget {
-  const _TimeInputField({
-    required this.label,
-    required this.hint,
-    required this.initialValue,
-    required this.onChanged,
-    this.onFinished,
-  });
-
-  final String label;
-  final String hint;
-  final String initialValue;
-  final ValueChanged<String> onChanged;
-  final VoidCallback? onFinished;
-
-  @override
-  State<_TimeInputField> createState() => _TimeInputFieldState();
-}
-
-class _TimeInputFieldState extends State<_TimeInputField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text:
-          WorkCalculator.normalizeTime(widget.initialValue) ??
-          widget.initialValue,
-    );
-    _focusNode = FocusNode()..addListener(_handleFocusChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant _TimeInputField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Parent echoes of typing must not rewrite the text or move the cursor.
-    if (widget.initialValue != oldWidget.initialValue &&
-        widget.initialValue != _controller.text) {
-      final value =
-          WorkCalculator.normalizeTime(widget.initialValue) ??
-          widget.initialValue;
-      _controller.value = TextEditingValue(
-        text: value,
-        selection: TextSelection.collapsed(offset: value.length),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_handleFocusChanged)
-      ..dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleFocusChanged() {
-    if (!_focusNode.hasFocus) _normalizeCompletedInput();
-  }
-
-  void _normalizeCompletedInput() {
-    final value = _controller.text;
-    final normalized = WorkCalculator.normalizeTime(value);
-    if (normalized != null && normalized != value) {
-      _controller.value = TextEditingValue(
-        text: normalized,
-        selection: TextSelection.collapsed(offset: normalized.length),
-      );
-      widget.onChanged(normalized);
-    }
-  }
-
-  TimeOfDay _initialTimeOfDay() {
-    final normalized =
-        WorkCalculator.normalizeTime(_controller.text) ??
-        WorkCalculator.normalizeTime(widget.initialValue) ??
-        WorkCalculator.normalizeTime(widget.hint) ??
-        '08:00';
-    final parts = normalized.split(':');
-    return TimeOfDay(
-      hour: int.parse(parts.first),
-      minute: int.parse(parts.last),
-    );
-  }
-
-  Future<void> _pickTime() async {
-    final selected = await showTimePicker(
-      context: context,
-      initialTime: _initialTimeOfDay(),
-      builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-        return MediaQuery(
-          data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-    );
-    if (!mounted || selected == null) return;
-    final value = formatTime(hour: selected.hour, minute: selected.minute);
-    _controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
-    );
-    widget.onChanged(value);
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      FieldLabel(widget.label),
-      const SizedBox(height: 8),
-      TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        keyboardType: TextInputType.datetime,
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          helperText: '24-hour time (e.g. 17:30)',
-          suffixIcon: IconButton(
-            tooltip: 'Pick time',
-            icon: const Icon(Icons.schedule_rounded, size: 20),
-            onPressed: _pickTime,
-          ),
-        ),
-        onChanged: widget.onChanged,
-        onEditingComplete: () {
-          _normalizeCompletedInput();
-          _focusNode.unfocus();
-          widget.onFinished?.call();
-        },
-      ),
-    ],
-  );
-}
-
 class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
@@ -1630,7 +1491,7 @@ class _LabeledField extends StatelessWidget {
     children: [
       FieldLabel(label),
       const SizedBox(height: 8),
-      _SelectAllTextFormField(
+      SelectAllTextFormField(
         initialValue: initialValue,
         keyboardType: keyboardType,
         decoration: InputDecoration(hintText: hint),

@@ -357,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 12),
                   const FieldLabel('Hourly rate'),
                   const SizedBox(height: 8),
-                  _SelectAllTextFormField(
+                  SelectAllTextFormField(
                     key: ValueKey('homeRate-$_formRevision'),
                     initialValue: _currencyInputValue(
                       _draftPreferences.primaryRateValue,
@@ -399,7 +399,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 12),
                   const FieldLabel('Hourly rate'),
                   const SizedBox(height: 8),
-                  _SelectAllTextFormField(
+                  SelectAllTextFormField(
                     key: ValueKey('awayRate-$_formRevision'),
                     initialValue: _currencyInputValue(
                       _draftPreferences.secondaryRateValue,
@@ -1054,7 +1054,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 16),
         const FieldLabel('Known pay period start date'),
         const SizedBox(height: 8),
-        _DatePickerTile(
+        DatePickerTile(
           value: _dateLabel(
             _parseSettingsDate(_draftPreferences.payPeriodAnchorDate),
           ),
@@ -1309,33 +1309,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _DatePickerTile extends StatelessWidget {
-  const _DatePickerTile({
-    required this.value,
-    required this.isMissing,
-    required this.onPressed,
-  });
-
-  final String value;
-  final bool isMissing;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        isMissing ? Icons.event_busy_outlined : Icons.event_available_outlined,
-      ),
-      label: Align(alignment: Alignment.centerLeft, child: Text(value)),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(48),
-        foregroundColor: isMissing ? Theme.of(context).colorScheme.error : null,
-      ),
-    );
-  }
-}
-
 class _SettingsTextField extends StatelessWidget {
   const _SettingsTextField({
     super.key,
@@ -1361,7 +1334,7 @@ class _SettingsTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (normalizeTime) {
-      return _TimeInputField(
+      return TimeInputField(
         label: label,
         hint: hint,
         initialValue: value,
@@ -1374,7 +1347,7 @@ class _SettingsTextField extends StatelessWidget {
       children: [
         FieldLabel(label),
         const SizedBox(height: 8),
-        _SelectAllTextFormField(
+        SelectAllTextFormField(
           initialValue: value,
           keyboardType: keyboardType,
           maxLength: maxLength,
@@ -1450,108 +1423,6 @@ class _SettingsFinishedTextFieldState
       onChanged: (value) {
         _edited = true;
         widget.onChanged(value);
-      },
-      onFieldSubmitted: (_) => _finishIfEdited(),
-    );
-  }
-}
-
-class _SelectAllTextFormField extends StatefulWidget {
-  const _SelectAllTextFormField({
-    super.key,
-    this.initialValue,
-    this.keyboardType,
-    this.decoration,
-    this.textInputAction,
-    this.onChanged,
-    this.onFinished,
-    this.maxLength,
-  });
-
-  final String? initialValue;
-  final TextInputType? keyboardType;
-  final InputDecoration? decoration;
-  final TextInputAction? textInputAction;
-  final ValueChanged<String>? onChanged;
-  final VoidCallback? onFinished;
-  final int? maxLength;
-
-  @override
-  State<_SelectAllTextFormField> createState() =>
-      _SelectAllTextFormFieldState();
-}
-
-class _SelectAllTextFormFieldState extends State<_SelectAllTextFormField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-  bool _selectedForFocus = false;
-  bool _edited = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialValue ?? '');
-    _focusNode = FocusNode()..addListener(_handleFocusChanged);
-  }
-
-  @override
-  void didUpdateWidget(_SelectAllTextFormField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_focusNode.hasFocus && oldWidget.initialValue != widget.initialValue) {
-      _controller.text = widget.initialValue ?? '';
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_handleFocusChanged)
-      ..dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _finishIfEdited() {
-    if (!_edited) return;
-    _edited = false;
-    widget.onFinished?.call();
-  }
-
-  void _handleFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      _selectedForFocus = false;
-      _finishIfEdited();
-      return;
-    }
-    if (_selectedForFocus) return;
-    _selectedForFocus = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_focusNode.hasFocus) return;
-      Scrollable.ensureVisible(
-        context,
-        duration: BriskaDurations.standard,
-        curve: Curves.easeOutCubic,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-      );
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: widget.keyboardType,
-      textInputAction: widget.textInputAction,
-      maxLength: widget.maxLength,
-      decoration: widget.decoration,
-      onChanged: (value) {
-        _edited = true;
-        widget.onChanged?.call(value);
       },
       onFieldSubmitted: (_) => _finishIfEdited(),
     );

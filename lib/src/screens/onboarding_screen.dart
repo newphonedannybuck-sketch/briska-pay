@@ -226,7 +226,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     if (fixedCyclePayFrequencies.contains(_frequency)) ...[
                       const FieldLabel('Known pay period start date'),
                       const SizedBox(height: 8),
-                      _DatePickerTile(
+                      DatePickerTile(
                         value: _onboardingDateLabel(_payPeriodAnchorDate),
                         isMissing: _payPeriodAnchorDate.isEmpty,
                         onPressed: _choosePayPeriodAnchorDate,

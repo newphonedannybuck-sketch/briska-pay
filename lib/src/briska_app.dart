@@ -39,6 +39,14 @@ import '../design_system/briska_theme.dart';
 import '../features/export/models/export_config.dart';
 import '../features/export/services/export_filename_service.dart';
 
+import 'widgets/shared_ui.dart';
+import 'widgets/form_controls.dart';
+import 'widgets/report_widgets.dart';
+
+export 'widgets/shared_ui.dart';
+export 'widgets/form_controls.dart';
+export 'widgets/report_widgets.dart';
+
 part 'screens/about_screen.dart';
 part 'screens/legal_text_screen.dart';
 part 'screens/support_screen.dart';
@@ -55,7 +63,7 @@ part 'screens/export_screen.dart';
 part 'screens/settings_screen.dart';
 part 'screens/add_work_day_screen.dart';
 part 'widgets/work_entry_card.dart';
-part 'widgets/shared_ui.dart';
+
 part 'screens/briska_shell.dart';
 
 String get _currencyPrefix => '${CurrencyFormatter.current.symbol}  ';

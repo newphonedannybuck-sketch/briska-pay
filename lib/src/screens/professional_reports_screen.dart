@@ -126,33 +126,33 @@ class _ProfessionalReportsScreenState extends State<ProfessionalReportsScreen> {
                 padding: const EdgeInsets.all(18),
                 child: Column(
                   children: [
-                    _ReportRow(
+                    ReportRow(
                       icon: Icons.schedule_rounded,
                       label: 'Average work day',
                       value: formatHoursLabel(averageWorkDay),
                     ),
                     Divider(height: 26, color: Theme.of(context).dividerColor),
-                    _ReportRow(
+                    ReportRow(
                       icon: Icons.beach_access_outlined,
                       label: 'Holidays',
                       value: summary.holidayDays.toString(),
                     ),
                     Divider(height: 26, color: Theme.of(context).dividerColor),
-                    _ReportRow(
+                    ReportRow(
                       icon: Icons.account_balance_rounded,
                       label: 'Bank Holidays (paid / unpaid)',
                       value:
                           '${summary.bankHolidayDays} (${summary.paidBankHolidayDays} / ${summary.unpaidBankHolidayDays})',
                     ),
                     Divider(height: 26, color: Theme.of(context).dividerColor),
-                    _ReportRow(
+                    ReportRow(
                       icon: Icons.sick_outlined,
                       label: 'Sick days (paid / unpaid)',
                       value:
                           '${summary.sickDays} (${summary.paidSickDays} / ${summary.unpaidSickDays})',
                     ),
                     Divider(height: 26, color: Theme.of(context).dividerColor),
-                    _ReportRow(
+                    ReportRow(
                       icon: Icons.event_busy_outlined,
                       label: 'Unpaid days off',
                       value: summary.unpaidDays.toString(),
@@ -395,23 +395,4 @@ class _ReportsEmptyState extends StatelessWidget {
       message: 'Try another reporting period, or record a work day.',
     );
   }
-}
-
-class _ReportRow extends StatelessWidget {
-  const _ReportRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-  final IconData icon;
-  final String label, value;
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, color: Theme.of(context).colorScheme.primary),
-      const SizedBox(width: 12),
-      Expanded(child: Text(label)),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-    ],
-  );
 }

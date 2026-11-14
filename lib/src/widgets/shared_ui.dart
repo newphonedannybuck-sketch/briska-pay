@@ -1,4 +1,8 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+
+import '../../design_system/briska_cards.dart';
+import '../../design_system/briska_spacing.dart';
+import '../../design_system/briska_theme.dart';
 
 class EntranceAnimation extends StatefulWidget {
   const EntranceAnimation({
