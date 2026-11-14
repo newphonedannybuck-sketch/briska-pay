@@ -1,15 +1,15 @@
+import 'entries/entry_widgets.dart';
+import 'entries/entry_form_sections.dart';
+import 'entries/site_name_field.dart';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../../design_system/briska_colors.dart';
-import '../../design_system/briska_theme.dart';
 import '../models.dart';
 import '../work_calculator.dart';
-import '../site_name_suggestions.dart';
 import '../presentation_format.dart';
 import '../display_format.dart';
 import '../widgets/shared_ui.dart';
-import '../widgets/form_controls.dart';
 
 class AddWorkDayScreen extends StatefulWidget {
   const AddWorkDayScreen({
@@ -31,131 +31,6 @@ class AddWorkDayScreen extends StatefulWidget {
 
   @override
   State<AddWorkDayScreen> createState() => _AddWorkDayScreenState();
-}
-
-class _SiteNameAutocomplete extends StatefulWidget {
-  const _SiteNameAutocomplete({
-    required this.controller,
-    required this.entries,
-    this.selectAllOnFocus = false,
-    this.errorText,
-    this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final List<WorkEntry> entries;
-  final bool selectAllOnFocus;
-  final String? errorText;
-  final ValueChanged<String>? onChanged;
-
-  @override
-  State<_SiteNameAutocomplete> createState() => _SiteNameAutocompleteState();
-}
-
-class _SiteNameAutocompleteState extends State<_SiteNameAutocomplete> {
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode()..addListener(_handleFocusChanged);
-  }
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_handleFocusChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  bool _selectedForFocus = false;
-
-  void _handleFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      _selectedForFocus = false;
-      return;
-    }
-    if (widget.controller.text.trim().isEmpty) {
-      setState(() {});
-      return;
-    }
-    if (!widget.selectAllOnFocus || _selectedForFocus) return;
-    _selectedForFocus = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_focusNode.hasFocus) return;
-      widget.controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: widget.controller.text.length,
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RawAutocomplete<String>(
-      textEditingController: widget.controller,
-      focusNode: _focusNode,
-      optionsBuilder: (value) => recentSiteNameSuggestions(
-        widget.entries,
-        query: value.text,
-        limit: value.text.trim().isEmpty ? 5 : 8,
-      ),
-      onSelected: (value) {
-        widget.controller
-          ..text = value
-          ..selection = TextSelection.collapsed(offset: value.length);
-      },
-      fieldViewBuilder:
-          (context, textEditingController, focusNode, onFieldSubmitted) {
-            return TextField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                hintText: 'Where did you work?',
-                prefixIcon: Icon(Icons.work_outline_rounded),
-              ).copyWith(errorText: widget.errorText),
-              onChanged: widget.onChanged,
-              onSubmitted: (_) => FocusScope.of(context).unfocus(),
-              onTap: () {
-                if (textEditingController.text.trim().isEmpty) {
-                  setState(() {});
-                }
-              },
-            );
-          },
-      optionsViewBuilder: (context, onSelected, options) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 8,
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280, maxWidth: 360),
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                shrinkWrap: true,
-                itemCount: options.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final option = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.location_on_outlined, size: 18),
-                    title: Text(option),
-                    onTap: () => onSelected(option),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
@@ -583,6 +458,137 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
     return true;
   }
 
+  List<Widget> _absenceInputs() => [
+    if (_hasHolidayHours) ...[
+      const FieldLabel('Hours (optional)'),
+      const SizedBox(height: 8),
+      TextField(
+        key: const ValueKey('holiday-hours-field'),
+        controller: _holidayHoursController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          hintText: 'Enter hours (optional)',
+          errorText: _hoursError,
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+      const SizedBox(height: 16),
+    ],
+    if (_entryType == 'Holiday') ...[
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            CalculationLine(
+              label: 'Holiday hours',
+              value: formatHoursLabel(_calculation.totalHours),
+              emphasize: true,
+            ),
+            const SizedBox(height: 8),
+            CalculationLine(
+              label:
+                  '${widget.preferences.labelForRate('primary')} hourly rate',
+              value: '${formatMoney(_selectedRate)} / hour',
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 18),
+    ],
+    if (_entryType == 'SickDay') ...[
+      const FieldLabel('Sick Pay'),
+      const SizedBox(height: 9),
+      SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(value: true, label: Text('Paid at Primary Rate')),
+            ButtonSegment(value: false, label: Text('Unpaid')),
+          ],
+          selected: {_isPaidSickDay},
+          onSelectionChanged: (values) => setState(() {
+            _isPaidSickDay = values.first;
+            _rateType = 'primary';
+            _selectedRate = _isPaidSickDay
+                ? widget.preferences.primaryRateValue
+                : 0;
+          }),
+          showSelectedIcon: false,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            CalculationLine(
+              label: 'Sick Day',
+              value: _isPaidSickDay ? 'Paid' : 'Unpaid',
+              emphasize: true,
+            ),
+            const SizedBox(height: 8),
+            CalculationLine(
+              label: 'Hours',
+              value: formatHoursLabel(_isPaidSickDay ? 8 : 0),
+            ),
+            if (_isPaidSickDay) ...[
+              const SizedBox(height: 8),
+              CalculationLine(
+                label: 'Paid at',
+                value: widget.preferences.labelForRate('primary'),
+              ),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: 18),
+    ],
+    if (_isBankHoliday) ...[
+      const FieldLabel('Pay Status'),
+      const SizedBox(height: 9),
+      SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(value: true, label: Text('Paid')),
+            ButtonSegment(value: false, label: Text('Unpaid')),
+          ],
+          selected: {_isPaidBankHoliday},
+          onSelectionChanged: (values) => setState(() {
+            _isPaidBankHoliday = values.first;
+            _rateType = 'primary';
+          }),
+          showSelectedIcon: false,
+        ),
+      ),
+      const SizedBox(height: 16),
+      CalculationLine(
+        label: 'Bank Holiday',
+        value: _isPaidBankHoliday ? 'Paid' : 'Unpaid',
+        emphasize: true,
+      ),
+      if (_isPaidBankHoliday) ...[
+        const SizedBox(height: 8),
+        CalculationLine(
+          label: 'Paid at',
+          value:
+              '${widget.preferences.labelForRate('primary')} · ${formatMoney(_selectedRate)} / hour',
+        ),
+      ],
+      const SizedBox(height: 18),
+    ],
+  ];
+
   @override
   Widget build(BuildContext context) {
     if (_securityDismissed) return const SizedBox.shrink();
@@ -619,7 +625,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _EntrySectionHeading(
+                    const EntrySectionHeading(
                       icon: Icons.event_note_outlined,
                       title: 'Entry details',
                       subtitle: 'Choose the day type and date',
@@ -627,46 +633,10 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                     const SizedBox(height: 22),
                     const FieldLabel('Day Type'),
                     const SizedBox(height: 9),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children:
-                          const [
-                            (EntryType.workDay, 'Work Day', Icons.work_outline),
-                            (
-                              EntryType.holiday,
-                              'Holiday',
-                              Icons.beach_access_outlined,
-                            ),
-                            (
-                              EntryType.bankHoliday,
-                              'Bank Holiday',
-                              Icons.account_balance_rounded,
-                            ),
-                            (
-                              EntryType.sickDay,
-                              'Sick Day',
-                              Icons.sick_outlined,
-                            ),
-                            (
-                              EntryType.unpaidDayOff,
-                              'Unpaid Day Off',
-                              Icons.event_busy_outlined,
-                            ),
-                          ].map((option) {
-                            final selected =
-                                _entryType == option.$1.storageValue ||
-                                (_isBankHoliday &&
-                                    option.$1 == EntryType.bankHoliday);
-                            return ChoiceChip(
-                              key: ValueKey('day-type-${option.$1.name}'),
-                              selected: selected,
-                              avatar: Icon(option.$3, size: 18),
-                              label: Text(option.$2),
-                              onSelected: (_) =>
-                                  _selectEntryType(option.$1.storageValue),
-                            );
-                          }).toList(),
+                    EntryDayTypeSelector(
+                      entryType: _entryType,
+                      isBankHoliday: _isBankHoliday,
+                      onSelected: _selectEntryType,
                     ),
                     const SizedBox(height: 16),
                     const FieldLabel('Date'),
@@ -700,7 +670,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                           if (_entryType == 'WorkDay') ...[
                             const FieldLabel('Site/job name'),
                             const SizedBox(height: 8),
-                            _SiteNameAutocomplete(
+                            SiteNameAutocomplete(
                               controller: _siteController,
                               entries: widget.savedEntries,
                               selectAllOnFocus: widget.initialEntry != null,
@@ -714,333 +684,53 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                             const SizedBox(height: 16),
                           ],
                           if (_entryType == 'WorkDay') ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TimeInputField(
-                                    label: 'Start time',
-                                    hint: '08:00',
-                                    initialValue: _startTime,
-                                    onChanged: (value) =>
-                                        setState(() => _startTime = value),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TimeInputField(
-                                    label: 'Finish time',
-                                    hint: '16:30',
-                                    initialValue: _finishTime,
-                                    onChanged: (value) =>
-                                        setState(() => _finishTime = value),
-                                  ),
-                                ),
-                              ],
+                            WorkTimeSection(
+                              startTime: _startTime,
+                              finishTime: _finishTime,
+                              breakInput: _breakInput,
+                              calculation: _calculation,
+                              onStartChanged: (value) =>
+                                  setState(() => _startTime = value),
+                              onFinishChanged: (value) =>
+                                  setState(() => _finishTime = value),
+                              onBreakChanged: (value) =>
+                                  setState(() => _breakInput = value),
                             ),
-                            const SizedBox(height: 16),
-                            _LabeledField(
-                              label: 'Break minutes',
-                              hint: 'Enter minutes',
-                              initialValue: _breakInput,
-                              keyboardType: TextInputType.number,
-                              onChanged: (value) {
-                                setState(() => _breakInput = value);
-                              },
-                            ),
-                            if (!_calculation.isValid) ...[
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.error_outline_rounded,
-                                    size: 18,
-                                    color: Theme.of(context).colorScheme.error,
-                                  ),
-                                  const SizedBox(width: 7),
-                                  Expanded(
-                                    child: Text(
-                                      _calculation.error!,
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.error,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
                             const SizedBox(height: 26),
                             const Divider(height: 1),
                             const SizedBox(height: 24),
-                            const _EntrySectionHeading(
-                              icon: Icons.payments_outlined,
-                              title: 'Pay details',
-                              subtitle: 'Rate and extras',
-                            ),
-                            const SizedBox(height: 22),
-                            const FieldLabel('Rate used'),
-                            const SizedBox(height: 9),
-                            SizedBox(
-                              width: double.infinity,
-                              child: SegmentedButton<String>(
-                                segments: [
-                                  ButtonSegment(
-                                    value: 'primary',
-                                    label: Text(
-                                      widget.preferences.labelForRate(
-                                        'primary',
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  ButtonSegment(
-                                    value: 'secondary',
-                                    label: Text(
-                                      widget.preferences.labelForRate(
-                                        'secondary',
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                                selected: {_rateType},
-                                onSelectionChanged: (values) =>
-                                    _selectRateType(values.first),
-                                showSelectedIcon: false,
+                            WorkPaySection(
+                              preferences: widget.preferences,
+                              rateType: _rateType,
+                              editingEntryId: _editingEntryId,
+                              selectedRate: _selectedRate,
+                              allowanceHasValue: _allowanceHasValue,
+                              appliedAllowance: _appliedAllowance,
+                              onRateTypeChanged: _selectRateType,
+                              onRateChanged: (value) => setState(
+                                () => _selectedRate = value.trim().isEmpty
+                                    ? 0
+                                    : (double.tryParse(value) ?? -1),
                               ),
+                              onAllowanceChanged: (value) {
+                                final text = value.trim();
+                                setState(() {
+                                  _allowanceHasValue = text.isNotEmpty;
+                                  _appliedAllowance = text.isEmpty
+                                      ? 0
+                                      : (double.tryParse(text) ?? -1);
+                                });
+                              },
                             ),
-                            const SizedBox(height: 16),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 220),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: .08),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const FieldLabel('Hourly rate for this day'),
-                                  const SizedBox(height: 8),
-                                  SelectAllTextFormField(
-                                    key: ValueKey('rate-$_rateType'),
-                                    initialValue: currencyInputValue(
-                                      _selectedRate,
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      prefixText: currencyPrefix,
-                                      suffixText: '/ hour',
-                                    ),
-                                    onChanged: (value) => setState(
-                                      () => _selectedRate = value.trim().isEmpty
-                                          ? 0
-                                          : (double.tryParse(value) ?? -1),
-                                    ),
-                                  ),
-                                  ...[
-                                    const SizedBox(height: 14),
-                                    const FieldLabel('Daily allowance'),
-                                    const SizedBox(height: 8),
-                                    SelectAllTextFormField(
-                                      key: ValueKey(
-                                        'allowance-$_editingEntryId-$_rateType',
-                                      ),
-                                      initialValue: _allowanceHasValue
-                                          ? currencyInputValue(
-                                              _appliedAllowance,
-                                            )
-                                          : '',
-                                      keyboardType: TextInputType.number,
-                                      textInputAction: TextInputAction.done,
-                                      decoration: InputDecoration(
-                                        prefixText: currencyPrefix,
-                                        hintText: 'e.g. 25.00',
-                                        helperText:
-                                            'Optional. Leave blank for no allowance.',
-                                      ),
-                                      onChanged: (value) {
-                                        final text = value.trim();
-                                        setState(() {
-                                          _allowanceHasValue = text.isNotEmpty;
-                                          _appliedAllowance = text.isEmpty
-                                              ? 0
-                                              : (double.tryParse(text) ?? -1);
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 22),
                           ],
-                          if (_hasHolidayHours) ...[
-                            const FieldLabel('Hours (optional)'),
-                            const SizedBox(height: 8),
-                            TextField(
-                              key: const ValueKey('holiday-hours-field'),
-                              controller: _holidayHoursController,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: InputDecoration(
-                                hintText: 'Enter hours (optional)',
-                                errorText: _hoursError,
-                              ),
-                              onChanged: (_) => setState(() {}),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          if (_entryType == 'Holiday') ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: .08),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                children: [
-                                  _CalculationLine(
-                                    label: 'Holiday hours',
-                                    value: formatHoursLabel(
-                                      _calculation.totalHours,
-                                    ),
-                                    emphasize: true,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _CalculationLine(
-                                    label:
-                                        '${widget.preferences.labelForRate('primary')} hourly rate',
-                                    value:
-                                        '${formatMoney(_selectedRate)} / hour',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                          if (_entryType == 'SickDay') ...[
-                            const FieldLabel('Sick Pay'),
-                            const SizedBox(height: 9),
-                            SizedBox(
-                              width: double.infinity,
-                              child: SegmentedButton<bool>(
-                                segments: const [
-                                  ButtonSegment(
-                                    value: true,
-                                    label: Text('Paid at Primary Rate'),
-                                  ),
-                                  ButtonSegment(
-                                    value: false,
-                                    label: Text('Unpaid'),
-                                  ),
-                                ],
-                                selected: {_isPaidSickDay},
-                                onSelectionChanged: (values) => setState(() {
-                                  _isPaidSickDay = values.first;
-                                  _rateType = 'primary';
-                                  _selectedRate = _isPaidSickDay
-                                      ? widget.preferences.primaryRateValue
-                                      : 0;
-                                }),
-                                showSelectedIcon: false,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: .08),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                children: [
-                                  _CalculationLine(
-                                    label: 'Sick Day',
-                                    value: _isPaidSickDay ? 'Paid' : 'Unpaid',
-                                    emphasize: true,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _CalculationLine(
-                                    label: 'Hours',
-                                    value: formatHoursLabel(
-                                      _isPaidSickDay ? 8 : 0,
-                                    ),
-                                  ),
-                                  if (_isPaidSickDay) ...[
-                                    const SizedBox(height: 8),
-                                    _CalculationLine(
-                                      label: 'Paid at',
-                                      value: widget.preferences.labelForRate(
-                                        'primary',
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                          if (_isBankHoliday) ...[
-                            const FieldLabel('Pay Status'),
-                            const SizedBox(height: 9),
-                            SizedBox(
-                              width: double.infinity,
-                              child: SegmentedButton<bool>(
-                                segments: const [
-                                  ButtonSegment(
-                                    value: true,
-                                    label: Text('Paid'),
-                                  ),
-                                  ButtonSegment(
-                                    value: false,
-                                    label: Text('Unpaid'),
-                                  ),
-                                ],
-                                selected: {_isPaidBankHoliday},
-                                onSelectionChanged: (values) => setState(() {
-                                  _isPaidBankHoliday = values.first;
-                                  _rateType = 'primary';
-                                }),
-                                showSelectedIcon: false,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _CalculationLine(
-                              label: 'Bank Holiday',
-                              value: _isPaidBankHoliday ? 'Paid' : 'Unpaid',
-                              emphasize: true,
-                            ),
-                            if (_isPaidBankHoliday) ...[
-                              const SizedBox(height: 8),
-                              _CalculationLine(
-                                label: 'Paid at',
-                                value:
-                                    '${widget.preferences.labelForRate('primary')} · ${formatMoney(_selectedRate)} / hour',
-                              ),
-                            ],
-                            const SizedBox(height: 18),
-                          ],
+                          ..._absenceInputs(),
                         ],
                       ),
                     ),
                     ...[
                       const FieldLabel('Job uplift'),
                       const SizedBox(height: 8),
-                      _OptionalCurrencyField(
+                      OptionalCurrencyField(
                         key: const ValueKey('job-uplift-field'),
                         initialValue: _jobUplift,
                         onChanged: (value) =>
@@ -1048,13 +738,13 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                       ),
                       const SizedBox(height: 18),
                     ],
-                    const _EntrySectionHeading(
+                    const EntrySectionHeading(
                       icon: Icons.remove_circle_outline,
                       title: 'Deduction',
                       subtitle: 'Optional pay adjustment',
                     ),
                     const SizedBox(height: 12),
-                    _OptionalCurrencyField(
+                    OptionalCurrencyField(
                       key: const ValueKey('deduction-amount-field'),
                       initialValue: _deductionAmount,
                       onChanged: (value) =>
@@ -1070,7 +760,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    _EarningsSummaryCard(
+                    EarningsSummaryCard(
                       calculation: _calculation,
                       rate: _selectedRate,
                       allowance: _appliedAllowance,
@@ -1079,7 +769,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                     const SizedBox(height: 26),
                     const Divider(height: 1),
                     const SizedBox(height: 24),
-                    const _EntrySectionHeading(
+                    const EntrySectionHeading(
                       icon: Icons.notes_rounded,
                       title: 'Notes',
                       subtitle: 'Optional details for later',
@@ -1102,7 +792,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _EntrySaveBar(
+      bottomNavigationBar: EntrySaveBar(
         calculation: _calculation,
         keyboardOpen: keyboardOpen,
         onSave: _isSaving ? null : _save,
@@ -1126,391 +816,4 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
   }
 }
 
-class _EntrySaveBar extends StatelessWidget {
-  const _EntrySaveBar({
-    required this.calculation,
-    required this.keyboardOpen,
-    required this.onSave,
-    required this.label,
-  });
-
-  final WorkCalculation calculation;
-  final bool keyboardOpen;
-  final VoidCallback? onSave;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Material(
-      color: colors.surface,
-      elevation: 12,
-      shadowColor: Colors.black.withValues(alpha: .12),
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-        child: Row(
-          children: [
-            if (!keyboardOpen) ...[
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Estimated gross pay',
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      calculation.isValid
-                          ? formatMoney(calculation.totalPay)
-                          : '--',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-            ],
-            SizedBox(
-              width: keyboardOpen ? 176 : 170,
-              child: BriskaPrimaryButton(
-                onPressed: onSave,
-                icon: Icons.check_rounded,
-                label: label,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EntrySectionHeading extends StatelessWidget {
-  const _EntrySectionHeading({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: colors.primary.withValues(alpha: .09),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: colors.primary, size: 22),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 enum _DuplicateChoice { cancel, editExisting, continueAnyway }
-
-class _OptionalCurrencyField extends StatefulWidget {
-  const _OptionalCurrencyField({
-    required this.initialValue,
-    required this.onChanged,
-    super.key,
-  });
-
-  final double initialValue;
-  final ValueChanged<double> onChanged;
-
-  @override
-  State<_OptionalCurrencyField> createState() => _OptionalCurrencyFieldState();
-}
-
-class _OptionalCurrencyFieldState extends State<_OptionalCurrencyField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-  bool _selectedForFocus = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initialValue == 0
-          ? ''
-          : widget.initialValue.toStringAsFixed(2),
-    );
-    _focusNode = FocusNode()..addListener(_handleFocus);
-  }
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_handleFocus)
-      ..dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleFocus() {
-    if (!_focusNode.hasFocus) {
-      _selectedForFocus = false;
-      _formatValue();
-      return;
-    }
-    if (_selectedForFocus) return;
-    _selectedForFocus = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_focusNode.hasFocus) return;
-      Scrollable.ensureVisible(
-        context,
-        duration: BriskaDurations.standard,
-        curve: Curves.easeOutCubic,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-      );
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
-    });
-  }
-
-  void _formatValue() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) {
-      widget.onChanged(0);
-      return;
-    }
-    final value = double.tryParse(text);
-    if (value == null) return;
-    _controller.value = TextEditingValue(
-      text: value.toStringAsFixed(2),
-      selection: TextSelection.collapsed(
-        offset: value.toStringAsFixed(2).length,
-      ),
-    );
-    widget.onChanged(value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        prefixText: currencyPrefix,
-        hintText: 'Enter amount (optional)',
-      ),
-      onChanged: (text) => widget.onChanged(
-        text.trim().isEmpty ? 0 : (double.tryParse(text) ?? -1),
-      ),
-      onEditingComplete: () {
-        _formatValue();
-        _focusNode.unfocus();
-      },
-    );
-  }
-}
-
-class _CalculationLine extends StatelessWidget {
-  const _CalculationLine({
-    required this.label,
-    required this.value,
-    this.emphasize = false,
-    this.foregroundColor,
-  });
-
-  final String label;
-  final String value;
-  final bool emphasize;
-  final Color? foregroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = foregroundColor ?? Theme.of(context).colorScheme.onSurface;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: emphasize ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
-            style: TextStyle(
-              color: color,
-              fontSize: emphasize ? 17 : 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EarningsSummaryCard extends StatelessWidget {
-  const _EarningsSummaryCard({
-    required this.calculation,
-    required this.rate,
-    required this.allowance,
-    required this.uplift,
-  });
-
-  final WorkCalculation calculation;
-  final double rate;
-  final double allowance;
-  final double uplift;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.primary,
-            Color.lerp(colorScheme.primary, BriskaColors.dark, .3)!,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: .18),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Estimated gross pay',
-            style: TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          BriskaAnimatedText(
-            formatMoney(calculation.totalPay),
-            style: Theme.of(
-              context,
-            ).textTheme.displaySmall?.copyWith(color: Colors.white),
-          ),
-          const SizedBox(height: 24),
-          _CalculationLine(
-            label: 'Hours',
-            value: formatHoursLabel(calculation.totalHours),
-            foregroundColor: Colors.white,
-          ),
-          const SizedBox(height: 8),
-          _CalculationLine(
-            label: 'Rate',
-            value: '${formatMoney(rate)} / hour',
-            foregroundColor: Colors.white,
-          ),
-          const SizedBox(height: 8),
-          _CalculationLine(
-            label: 'Allowance',
-            value: formatMoney(allowance),
-            foregroundColor: Colors.white,
-          ),
-          const SizedBox(height: 8),
-          _CalculationLine(
-            label: 'Uplift',
-            value: formatMoney(uplift),
-            foregroundColor: Colors.white,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Divider(
-              color: Colors.white.withValues(alpha: .2),
-              height: 1,
-            ),
-          ),
-          _CalculationLine(
-            label: 'Estimated gross pay',
-            value: formatMoney(calculation.totalPay),
-            emphasize: true,
-            foregroundColor: Colors.white,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({
-    required this.label,
-    required this.hint,
-    this.initialValue,
-    this.onChanged,
-    this.keyboardType,
-  });
-  final String label, hint;
-  final String? initialValue;
-  final ValueChanged<String>? onChanged;
-  final TextInputType? keyboardType;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      FieldLabel(label),
-      const SizedBox(height: 8),
-      SelectAllTextFormField(
-        initialValue: initialValue,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(hintText: hint),
-        onChanged: onChanged,
-      ),
-    ],
-  );
-}
