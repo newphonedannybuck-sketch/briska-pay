@@ -1,56 +1,24 @@
+import '../export/export_action_overrides.dart';
+import '../export/export_actions.dart';
+import '../export/export_generation_service.dart';
+import 'export/export_library_screen.dart';
+import 'export/export_library_widgets.dart';
+
 import '../pay_schedule.dart';
 import '../../design_system/briska_spacing.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../design_system/briska_cards.dart';
 import '../../features/export/models/export_config.dart';
 import '../../features/export/services/export_filename_service.dart';
 import '../app/briska_page_route.dart';
-import '../app_theme.dart';
 import '../models.dart';
-import '../currency.dart';
 import '../export_formats.dart';
-import '../csv_export_service.dart';
-import '../excel_export_service.dart';
-import '../pdf_export_service.dart';
 import '../export/export_feedback.dart';
 import '../work_calculator.dart';
 import '../presentation_format.dart';
 import '../display_format.dart';
 import '../widgets/shared_ui.dart';
-
-class _ExportLibraryFailure implements Exception {
-  const _ExportLibraryFailure(this.message);
-  final String message;
-}
-
-class ExportActionOverrides {
-  const ExportActionOverrides({
-    this.open,
-    this.share,
-    this.print,
-    this.rename,
-    this.deleteFile,
-    this.create,
-  });
-
-  final Future<bool> Function(ExportedFileRecord record)? open;
-  final Future<void> Function(ExportedFileRecord record)? share;
-  final Future<void> Function(ExportedFileRecord record)? print;
-  final Future<void> Function(File source, String targetPath)? rename;
-  final Future<void> Function(File file)? deleteFile;
-  final Future<ExportFileResult> Function(
-    List<WorkEntry> entries,
-    AppSettings settings,
-    ExportFormat format,
-  )?
-  create;
-}
 
 class ExportScreen extends StatefulWidget {
   const ExportScreen({
@@ -89,6 +57,18 @@ class ExportScreen extends StatefulWidget {
 }
 
 class _ExportScreenState extends State<ExportScreen> {
+  late final ExportActions _actions = ExportActions(
+    isMounted: () => mounted,
+    canPresent: () => _canPresent,
+    currentUpdate: () => widget.onUpdate,
+    currentDelete: () => widget.onDelete,
+    currentOverrides: () => widget.actionOverrides,
+    showMessage: _message,
+    refresh: () {
+      if (mounted) setState(() {});
+    },
+  );
+
   ExportedFileRecord? _pendingCompletion;
   String? _pendingMessage;
 
@@ -109,33 +89,6 @@ class _ExportScreenState extends State<ExportScreen> {
   }
 
   late final ValueNotifier<List<ExportedFileRecord>> _libraryRecords;
-  // Avoid overlapping file operations or toggles based on the same stale card.
-  final Set<String> _busyRecords = {};
-
-  Future<void> _recordAction(
-    ExportedFileRecord record,
-    Future<void> Function() action,
-  ) async {
-    if (!_busyRecords.add(record.id)) return;
-    try {
-      await action();
-    } finally {
-      _busyRecords.remove(record.id);
-    }
-  }
-
-  Future<bool> _persist(
-    Future<bool> Function(ExportedFileRecord) callback,
-    ExportedFileRecord record,
-  ) async {
-    try {
-      return await callback(record);
-    } catch (error) {
-      if (kDebugMode) debugPrint('export library persistence failed: $error');
-      return false;
-    }
-  }
-
   void _message(BuildContext context, String message) {
     if (!context.mounted) return;
     if (!_canPresent) {
@@ -147,24 +100,8 @@ class _ExportScreenState extends State<ExportScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _favourite(
-    BuildContext context,
-    ExportedFileRecord record,
-  ) async {
-    if (!await _persist(
-      widget.onUpdate,
-      record.copyWith(isFavourite: !record.isFavourite),
-    )) {
-      if (context.mounted) {
-        _message(context, 'Could not save favourite status. Please try again.');
-      }
-    }
-  }
-
   bool _isExporting = false;
   bool _showMoreOptions = false;
-  String _librarySort = 'Newest';
-  String _libraryFilter = 'All';
   ExportDateRangeType _rangeType = ExportDateRangeType.currentMonth;
   ExportReportType _reportType = ExportReportType.timesheet;
   ExportFileFormat _fileFormat = ExportFileFormat.pdf;
@@ -302,7 +239,16 @@ class _ExportScreenState extends State<ExportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.libraryOnly) return _buildExportLibrary(context);
+    if (widget.libraryOnly) {
+      return ExportLibraryScreen(
+        records: widget.records,
+        onUpdate: widget.onUpdate,
+        onDelete: widget.onDelete,
+        actionOverrides: widget.actionOverrides,
+        isActive: widget.isActive,
+        canPresent: widget.canPresent,
+      );
+    }
     final range = _range;
     final periodLabel = range == null
         ? 'No date range'
@@ -564,7 +510,7 @@ class _ExportScreenState extends State<ExportScreen> {
           const SectionHeading(title: 'Recent exports'),
           const SizedBox(height: 10),
           if (widget.records.isEmpty)
-            const _CompactEmptyExportLibrary()
+            const CompactEmptyExportLibrary()
           else ...[
             ...([...widget.records]
                   ..sort((a, b) => b.exportedAt.compareTo(a.exportedAt)))
@@ -572,15 +518,19 @@ class _ExportScreenState extends State<ExportScreen> {
                 .map(
                   (record) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: _RecentExportCard(
+                    child: RecentExportCard(
                       record: record,
-                      onOpen: () =>
-                          _recordAction(record, () => _open(context, record)),
-                      onShare: () =>
-                          _recordAction(record, () => _share(context, record)),
-                      onDelete: () => _recordAction(
+                      onOpen: () => _actions.run(
                         record,
-                        () => _confirmDelete(context, record),
+                        () => _actions.open(context, record),
+                      ),
+                      onShare: () => _actions.run(
+                        record,
+                        () => _actions.share(context, record),
+                      ),
+                      onDelete: () => _actions.run(
+                        record,
+                        () => _actions.confirmDelete(context, record),
                       ),
                     ),
                   ),
@@ -604,17 +554,10 @@ class _ExportScreenState extends State<ExportScreen> {
       BriskaPageRoute(
         child: ValueListenableBuilder<List<ExportedFileRecord>>(
           valueListenable: _libraryRecords,
-          builder: (context, records, _) => ExportScreen(
-            entries: widget.entries,
-            fullName: widget.fullName,
-            companyName: widget.companyName,
-            settings: widget.settings,
+          builder: (context, records, _) => ExportLibraryScreen(
             records: records,
-            onPreferencesChanged: widget.onPreferencesChanged,
-            onAdd: widget.onAdd,
             onDelete: widget.onDelete,
             onUpdate: widget.onUpdate,
-            libraryOnly: true,
             actionOverrides: widget.actionOverrides,
             canPresent: widget.canPresent,
           ),
@@ -622,94 +565,6 @@ class _ExportScreenState extends State<ExportScreen> {
       ),
     );
     _presentPending();
-  }
-
-  Widget _buildExportLibrary(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Export Library')),
-    body: AppPage(
-      topPadding: 8,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              DropdownButton<String>(
-                value: _librarySort,
-                items: const ['Newest', 'Oldest', 'Filename']
-                    .map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text(value)),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _librarySort = value!),
-              ),
-              ...['All', 'PDF', 'Excel', 'CSV'].map(
-                (value) => FilterChip(
-                  label: Text(value),
-                  selected: _libraryFilter == value,
-                  onSelected: (_) => setState(() => _libraryFilter = value),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_filteredLibraryRecords.isEmpty)
-            const _CompactEmptyExportLibrary()
-          else
-            ..._filteredLibraryRecords.map(
-              (record) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ExportedFileCard(
-                  record: record,
-                  onOpen: () =>
-                      _recordAction(record, () => _open(context, record)),
-                  onShare: () =>
-                      _recordAction(record, () => _share(context, record)),
-                  onPrint:
-                      ExportFormat.fromFileType(record.fileType) ==
-                              ExportFormat.pdfTimesheet ||
-                          ExportFormat.fromFileType(record.fileType) ==
-                              ExportFormat.pdfSummary
-                      ? () =>
-                            _recordAction(record, () => _print(context, record))
-                      : null,
-                  onRename: () =>
-                      _recordAction(record, () => _rename(context, record)),
-                  onFavourite: () =>
-                      _recordAction(record, () => _favourite(context, record)),
-                  onDelete: () => _recordAction(
-                    record,
-                    () => _confirmDelete(context, record),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
-
-  List<ExportedFileRecord> get _filteredLibraryRecords {
-    final records = widget.records.where((record) {
-      if (_libraryFilter == 'All') return true;
-      return ExportFormat.fromFileType(
-        record.fileType,
-      ).fileType.toLowerCase().contains(_libraryFilter.toLowerCase());
-    }).toList();
-    switch (_librarySort) {
-      case 'Oldest':
-        records.sort((a, b) => a.exportedAt.compareTo(b.exportedAt));
-      case 'Filename':
-        records.sort(
-          (a, b) =>
-              a.fileName.toLowerCase().compareTo(b.fileName.toLowerCase()),
-        );
-      default:
-        records.sort((a, b) => b.exportedAt.compareTo(a.exportedAt));
-    }
-    return records;
   }
 
   SwitchListTile _optionSwitch(
@@ -814,7 +669,11 @@ class _ExportScreenState extends State<ExportScreen> {
     exportEntries = List.of(exportEntries);
     try {
       final now = DateTime.now();
-      final result = await _runExport(
+      final result = await ExportGenerationService.generate(
+        settings: widget.settings,
+        fullName: widget.fullName,
+        companyName: widget.companyName,
+        actionOverrides: widget.actionOverrides,
         format: format,
         exportEntries: exportEntries,
         periodLabel: periodLabel,
@@ -841,7 +700,7 @@ class _ExportScreenState extends State<ExportScreen> {
         currencyCode: settings.currency.code,
         currencySymbol: settings.currency.symbol,
       );
-      if (!await _persist(add, record)) {
+      if (!await ExportActions.persist(add, record)) {
         if (context.mounted) {
           _message(
             context,
@@ -858,88 +717,6 @@ class _ExportScreenState extends State<ExportScreen> {
       if (kDebugMode) debugPrint('Export failed: $error');
       _message(context, exportCreationFailureMessage(error));
     }
-  }
-
-  Future<ExportFileResult> _runExport({
-    required ExportFormat format,
-    required List<WorkEntry> exportEntries,
-    required String periodLabel,
-    required String fileNameLabel,
-    required DateTime generatedAt,
-    required ExportOptions options,
-  }) async {
-    // Capture before the first await, including PDF asset loading. Retained
-    // screens can receive new settings while the original file is generated.
-    final snapshot = widget;
-    final create = snapshot.actionOverrides?.create;
-    if (create != null) return create(exportEntries, snapshot.settings, format);
-    return switch (format) {
-      ExportFormat.excel => ExcelExportService.export(
-        exportEntries,
-        fullName: options.includeEmployeeName ? snapshot.fullName : '',
-        companyName: options.includeCompanyName ? snapshot.companyName : '',
-        periodLabel: periodLabel,
-        fileNameLabel: fileNameLabel,
-        currency: snapshot.settings.currency,
-        primaryRateLabel: snapshot.settings.labelForRate('primary'),
-        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
-        includeNotes: options.includeNotes,
-        includeSignatureLine: options.includeSignatureLine,
-      ),
-      ExportFormat.csv => CsvExportService.export(
-        exportEntries,
-        fullName: options.includeEmployeeName ? snapshot.fullName : '',
-        companyName: options.includeCompanyName ? snapshot.companyName : '',
-        periodLabel: periodLabel,
-        fileNameLabel: fileNameLabel,
-        currency: snapshot.settings.currency,
-        primaryRateLabel: snapshot.settings.labelForRate('primary'),
-        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
-        includeNotes: options.includeNotes,
-      ),
-      ExportFormat.pdfTimesheet => PdfExportService.exportTimesheet(
-        exportEntries,
-        fullName: options.includeEmployeeName ? snapshot.fullName : '',
-        companyName: options.includeCompanyName ? snapshot.companyName : '',
-        periodLabel: periodLabel,
-        generatedAt: generatedAt,
-        logoBytes: await _loadAssetBytes(
-          'assets/branding/briska-bp-in-app.png',
-        ),
-        regularFontBytes: await _loadAssetBytes(
-          'assets/fonts/Poppins-Regular.ttf',
-        ),
-        boldFontBytes: await _loadAssetBytes(
-          'assets/fonts/Poppins-SemiBold.ttf',
-        ),
-        fileNameLabel: fileNameLabel,
-        currency: snapshot.settings.currency,
-        primaryRateLabel: snapshot.settings.labelForRate('primary'),
-        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
-        includeSignatureLine: options.includeSignatureLine,
-      ),
-      ExportFormat.pdfSummary => PdfExportService.exportSummary(
-        exportEntries,
-        fullName: options.includeEmployeeName ? snapshot.fullName : '',
-        companyName: options.includeCompanyName ? snapshot.companyName : '',
-        periodLabel: periodLabel,
-        generatedAt: generatedAt,
-        logoBytes: await _loadAssetBytes(
-          'assets/branding/briska-bp-in-app.png',
-        ),
-        regularFontBytes: await _loadAssetBytes(
-          'assets/fonts/Poppins-Regular.ttf',
-        ),
-        boldFontBytes: await _loadAssetBytes(
-          'assets/fonts/Poppins-SemiBold.ttf',
-        ),
-        fileNameLabel: fileNameLabel,
-        currency: snapshot.settings.currency,
-        primaryRateLabel: snapshot.settings.labelForRate('primary'),
-        secondaryRateLabel: snapshot.settings.labelForRate('secondary'),
-        includeSignatureLine: options.includeSignatureLine,
-      ),
-    };
   }
 
   Future<void> _showExportCompleteActions(
@@ -961,335 +738,14 @@ class _ExportScreenState extends State<ExportScreen> {
     if (!context.mounted) return;
     switch (action) {
       case _ExportCompleteAction.open:
-        await _open(context, record);
+        await _actions.open(context, record);
       case _ExportCompleteAction.share:
-        await _share(context, record);
+        await _actions.share(context, record);
       case _ExportCompleteAction.print:
-        await _print(context, record);
+        await _actions.print(context, record);
       case _ExportCompleteAction.done || null:
         break;
     }
-  }
-
-  Future<Uint8List> _loadAssetBytes(String path) async {
-    final data = await rootBundle.load(path);
-    return data.buffer.asUint8List();
-  }
-
-  Future<void> _open(BuildContext context, ExportedFileRecord record) async {
-    if (!record.isAvailable) {
-      _message(context, 'Export file not found.');
-      return;
-    }
-    try {
-      record = await _providerCompatibleRecord(record);
-      if (!_canPresent) return;
-      final override = widget.actionOverrides?.open;
-      if (override != null) {
-        final opened = await override(record);
-        if (!context.mounted || opened) return;
-        _message(
-          context,
-          exportFileActionFailureMessage(ExportFileAction.open),
-        );
-        return;
-      }
-      final format = ExportFormat.fromFileType(record.fileType);
-      final result = await OpenFilex.open(
-        record.filePath,
-        type: format.mimeType,
-      );
-      if (!context.mounted || result.type.name == 'done') return;
-      if (kDebugMode) debugPrint('open export failed: ${result.message}');
-      _message(context, exportFileActionFailureMessage(ExportFileAction.open));
-    } catch (error) {
-      if (kDebugMode) debugPrint('open export failed: $error');
-      if (error is _ExportLibraryFailure) {
-        if (context.mounted) {
-          _message(context, error.message);
-        }
-        return;
-      }
-      if (!context.mounted) return;
-      _message(context, exportFileActionFailureMessage(ExportFileAction.open));
-    }
-  }
-
-  Future<void> _share(BuildContext context, ExportedFileRecord record) async {
-    if (!record.isAvailable) {
-      _message(context, 'Export file not found.');
-      return;
-    }
-    final format = ExportFormat.fromFileType(record.fileType);
-    try {
-      record = await _providerCompatibleRecord(record);
-      if (!_canPresent) return;
-      final override = widget.actionOverrides?.share;
-      if (override != null) {
-        await override(record);
-      } else {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(record.filePath, mimeType: format.mimeType)],
-            subject: record.fileName,
-          ),
-        );
-      }
-    } catch (error) {
-      if (kDebugMode) debugPrint('share export failed: $error');
-      if (error is _ExportLibraryFailure) {
-        if (context.mounted) {
-          _message(context, error.message);
-        }
-        return;
-      }
-      if (!context.mounted) return;
-      _message(context, exportFileActionFailureMessage(ExportFileAction.share));
-    }
-  }
-
-  Future<void> _rename(BuildContext context, ExportedFileRecord record) async {
-    final update = widget.onUpdate;
-    final format = ExportFormat.fromFileType(record.fileType);
-    final initialName = record.fileName.replaceFirst(
-      RegExp('\\.${RegExp.escape(format.extension)}\$'),
-      '',
-    );
-    final name = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => _RenameExportDialog(
-        initialName: initialName,
-        extension: format.extension,
-      ),
-    );
-    final safeName = name == null ? '' : ExportFileNamer.safeName(name);
-    if (safeName.isEmpty) return;
-    final fileName = '$safeName.${format.extension}';
-    try {
-      var filePath = record.filePath;
-      if (record.isAvailable) {
-        record = await _providerCompatibleRecord(record, onUpdate: update);
-        filePath = record.filePath;
-        final separator = Platform.pathSeparator;
-        final parent = File(record.filePath).parent.path;
-        final targetPath = '$parent$separator$fileName';
-        if (targetPath != record.filePath && await File(targetPath).exists()) {
-          throw FileSystemException('A file with that name already exists.');
-        }
-        final source = File(record.filePath);
-        final override = widget.actionOverrides?.rename;
-        if (override != null) {
-          await override(source, targetPath);
-          filePath = targetPath;
-        } else {
-          filePath = (await source.rename(targetPath)).path;
-        }
-      }
-      if (!await _persist(
-        update,
-        record.copyWith(fileName: fileName, filePath: filePath),
-      )) {
-        if (filePath != record.filePath) {
-          try {
-            final original = File(record.filePath);
-            if (await original.exists()) {
-              throw const FileSystemException(
-                'Original filename is now occupied.',
-              );
-            }
-            await File(filePath).rename(record.filePath);
-          } catch (_) {
-            if (mounted) setState(() {});
-            if (context.mounted) {
-              _message(
-                context,
-                'The file was renamed to $filePath, but the Export Library could not be updated and the original name could not be restored. Keep the renamed file; remove the old library record or export again.',
-              );
-            }
-            return;
-          }
-        }
-        if (context.mounted) {
-          _message(
-            context,
-            'Could not save the new name. The original filename has been kept. Please try again.',
-          );
-        }
-        return;
-      }
-      if (!context.mounted) return;
-      _message(context, 'Export renamed.');
-    } catch (error) {
-      if (kDebugMode) debugPrint('rename export failed: $error');
-      if (error is _ExportLibraryFailure) {
-        if (context.mounted) {
-          _message(context, error.message);
-        }
-        return;
-      }
-      if (!context.mounted) return;
-      _message(
-        context,
-        exportFileActionFailureMessage(ExportFileAction.rename),
-      );
-    }
-  }
-
-  Future<void> _print(BuildContext context, ExportedFileRecord record) async {
-    if (!record.isAvailable) {
-      _message(context, 'Export file not found.');
-      return;
-    }
-    try {
-      record = await _providerCompatibleRecord(record);
-      if (!_canPresent) return;
-      final override = widget.actionOverrides?.print;
-      if (override != null) {
-        await override(record);
-      } else {
-        await Printing.layoutPdf(
-          name: record.fileName,
-          onLayout: (_) => File(record.filePath).readAsBytes(),
-        );
-      }
-    } catch (error) {
-      if (kDebugMode) debugPrint('print export failed: $error');
-      if (error is _ExportLibraryFailure) {
-        if (context.mounted) {
-          _message(context, error.message);
-        }
-        return;
-      }
-      if (!context.mounted) return;
-      _message(context, exportFileActionFailureMessage(ExportFileAction.print));
-    }
-  }
-
-  Future<ExportedFileRecord> _providerCompatibleRecord(
-    ExportedFileRecord record, {
-    Future<bool> Function(ExportedFileRecord)? onUpdate,
-  }) async {
-    final update = onUpdate ?? widget.onUpdate;
-    final file = await ExportFileNamer.ensureProviderCompatibleFile(
-      File(record.filePath),
-    );
-    if (file.path == record.filePath) return record;
-    final updated = record.copyWith(filePath: file.path);
-    if (!await _persist(update, updated)) {
-      throw const _ExportLibraryFailure(
-        'Could not save the updated export path. The original file is still available. Please try again.',
-      );
-    }
-    return updated;
-  }
-
-  Future<void> _confirmDelete(
-    BuildContext context,
-    ExportedFileRecord record,
-  ) async {
-    final delete = widget.onDelete;
-    final result = await showDialog<_DeleteChoice>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.delete_outline_rounded),
-        title: const Text('Delete export?'),
-        content: const Text('Choose what you want to delete.'),
-        actions: [
-          TextButton(
-            autofocus: true,
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          if (record.isAvailable)
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-              onPressed: () =>
-                  Navigator.pop(dialogContext, _DeleteChoice.fileToo),
-              child: const Text('Delete file and remove from library'),
-            ),
-          OutlinedButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, _DeleteChoice.libraryOnly),
-            child: const Text('Remove from library'),
-          ),
-        ],
-      ),
-    );
-    if (!context.mounted || result == null) return;
-    if (result == _DeleteChoice.fileToo) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          icon: Icon(
-            Icons.delete_forever_outlined,
-            color: Theme.of(dialogContext).colorScheme.error,
-          ),
-          title: const Text('Delete file from device?'),
-          content: const Text(
-            'This will permanently delete the exported file and remove it '
-            "from the Briska Pay Export Library.\n\nThis can't be undone.",
-          ),
-          actions: [
-            TextButton(
-              autofocus: true,
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            Semantics(
-              button: true,
-              label: 'Delete export file from device',
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Delete file'),
-              ),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-      try {
-        final file = File(record.filePath);
-        if (file.existsSync()) {
-          final override = widget.actionOverrides?.deleteFile;
-          if (override != null) {
-            await override(file);
-          } else {
-            await file.delete();
-          }
-        }
-      } catch (error) {
-        if (kDebugMode) debugPrint('delete export failed: $error');
-        if (!context.mounted) return;
-        _message(
-          context,
-          exportFileActionFailureMessage(ExportFileAction.delete),
-        );
-        return;
-      }
-    }
-    if (!await _persist(delete, record)) {
-      if (mounted) setState(() {});
-      if (context.mounted) {
-        _message(
-          context,
-          result == _DeleteChoice.fileToo
-              ? 'The file was deleted, but its library record could not be removed. Try Remove from library again.'
-              : 'Could not remove this export from the library. Please try again.',
-        );
-      }
-      return;
-    }
-    if (!context.mounted) return;
-    _message(
-      context,
-      result == _DeleteChoice.fileToo
-          ? 'Export deleted.'
-          : 'Export removed from library.',
-    );
   }
 }
 
@@ -1397,56 +853,7 @@ class _NoWorkRecords extends StatelessWidget {
   );
 }
 
-enum _DeleteChoice { libraryOnly, fileToo }
-
 enum _ExportCompleteAction { open, share, print, done }
-
-class _RenameExportDialog extends StatefulWidget {
-  const _RenameExportDialog({
-    required this.initialName,
-    required this.extension,
-  });
-
-  final String initialName;
-  final String extension;
-
-  @override
-  State<_RenameExportDialog> createState() => _RenameExportDialogState();
-}
-
-class _RenameExportDialogState extends State<_RenameExportDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialName,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Rename export'),
-    content: TextField(
-      controller: _controller,
-      autofocus: true,
-      decoration: const InputDecoration(
-        labelText: 'File name',
-      ).copyWith(suffixText: '.${widget.extension}'),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, _controller.text.trim()),
-        child: const Text('Rename'),
-      ),
-    ],
-  );
-}
 
 class ExportCreatedDialog extends StatelessWidget {
   const ExportCreatedDialog({
@@ -1492,356 +899,4 @@ class ExportCreatedDialog extends StatelessWidget {
       FilledButton(onPressed: onOpen, child: const Text('Open')),
     ],
   );
-}
-
-class _ExportedFileCard extends StatelessWidget {
-  const _ExportedFileCard({
-    required this.record,
-    required this.onOpen,
-    required this.onShare,
-    required this.onPrint,
-    required this.onRename,
-    required this.onFavourite,
-    required this.onDelete,
-  });
-
-  final ExportedFileRecord record;
-  final VoidCallback onOpen;
-  final VoidCallback onShare;
-  final VoidCallback? onPrint;
-  final VoidCallback onRename;
-  final VoidCallback onFavourite;
-  final VoidCallback onDelete;
-
-  String get _date => formatCompactDateWithYear(record.exportedAt);
-
-  String get _size {
-    return formatFileSize(record.fileSize);
-  }
-
-  ExportFormat get _format => ExportFormat.fromFileType(record.fileType);
-
-  String get _icon {
-    return switch (_format) {
-      ExportFormat.excel => '📗',
-      ExportFormat.pdfTimesheet => '📕',
-      ExportFormat.pdfSummary => '📄',
-      ExportFormat.csv => '📊',
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: .09),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                    child: Text(_icon, style: const TextStyle(fontSize: 24)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        record.fileName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_format.fileType} - $_date',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  formatMoney(
-                    record.totalPay,
-                    CurrencyCatalog.byCode(
-                      record.currencyCode,
-                    ).copyWith(symbol: record.currencySymbol),
-                  ),
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Wrap(
-                spacing: 18,
-                runSpacing: 9,
-                children: [
-                  _LibraryDetail(label: 'Period', value: record.periodLabel),
-                  _LibraryDetail(label: 'File type', value: _format.fileType),
-                  _LibraryDetail(label: 'Created', value: _date),
-                  _LibraryDetail(
-                    label: record.workDays == 1
-                        ? 'Day recorded'
-                        : 'Days recorded',
-                    value: record.workDays.toString(),
-                  ),
-                  _LibraryDetail(
-                    label: 'Hours',
-                    value: formatHoursLabel(record.totalHours),
-                  ),
-                  _LibraryDetail(label: 'File size', value: _size),
-                ],
-              ),
-            ),
-            if (!record.isAvailable) ...[
-              const SizedBox(height: 10),
-              const _MissingFileBadge(),
-            ],
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              alignment: WrapAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: onOpen,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('Open'),
-                ),
-                TextButton.icon(
-                  onPressed: onShare,
-                  icon: const Icon(Icons.share_outlined, size: 18),
-                  label: const Text('Share'),
-                ),
-                if (onPrint != null)
-                  TextButton.icon(
-                    onPressed: onPrint,
-                    icon: const Icon(Icons.print_outlined, size: 18),
-                    label: const Text('Print'),
-                  ),
-                TextButton.icon(
-                  onPressed: onFavourite,
-                  icon: Icon(
-                    record.isFavourite
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    size: 18,
-                  ),
-                  label: Text(record.isFavourite ? 'Favourited' : 'Favourite'),
-                ),
-                TextButton.icon(
-                  onPressed: onRename,
-                  icon: const Icon(
-                    Icons.drive_file_rename_outline_rounded,
-                    size: 18,
-                  ),
-                  label: const Text('Rename'),
-                ),
-                TextButton.icon(
-                  onPressed: onDelete,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                  ),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('Delete'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MissingFileBadge extends StatelessWidget {
-  const _MissingFileBadge();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.error.withValues(alpha: .09),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      'Export file not found.',
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.error,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
-}
-
-class _LibraryDetail extends StatelessWidget {
-  const _LibraryDetail({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Text.rich(
-    TextSpan(
-      text: '$label  ',
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        fontSize: 12,
-      ),
-      children: [
-        TextSpan(
-          text: value,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _CompactEmptyExportLibrary extends StatelessWidget {
-  const _CompactEmptyExportLibrary();
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'No exports yet',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Reports you create will appear here for quick access.',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _RecentExportCard extends StatelessWidget {
-  const _RecentExportCard({
-    required this.record,
-    required this.onOpen,
-    required this.onShare,
-    required this.onDelete,
-  });
-
-  final ExportedFileRecord record;
-  final VoidCallback onOpen;
-  final VoidCallback onShare;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final format = ExportFormat.fromFileType(record.fileType);
-    final created = formatCompactDateWithYear(record.exportedAt);
-    final range = record.startDate != null && record.endDate != null
-        ? '${formatCompactDateWithYear(record.startDate!)} – '
-              '${formatCompactDateWithYear(record.endDate!)}'
-        : record.periodLabel;
-    final size = record.fileSize == null
-        ? null
-        : record.fileSize! >= 1024 * 1024
-        ? '${(record.fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB'
-        : '${(record.fileSize! / 1024).toStringAsFixed(0)} KB';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
-        child: Row(
-          children: [
-            Icon(
-              format == ExportFormat.excel
-                  ? Icons.table_chart_outlined
-                  : format == ExportFormat.csv
-                  ? Icons.grid_on_outlined
-                  : Icons.picture_as_pdf_outlined,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    record.fileName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${record.reportType} · $range',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    '$created · ${format.label}${size == null ? '' : ' · $size'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Export actions',
-              onSelected: (action) {
-                switch (action) {
-                  case 'open':
-                    onOpen();
-                  case 'share':
-                    onShare();
-                  case 'delete':
-                    onDelete();
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'open', child: Text('Open')),
-                PopupMenuItem(value: 'share', child: Text('Share')),
-                PopupMenuItem(value: 'delete', child: Text('Delete')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
