@@ -268,8 +268,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Settings',
             subtitle: 'Make Briska Pay work your way.',
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Profile'),
+          const SizedBox(height: 20),
+          const SectionHeading(
+            title: 'Profile',
+            icon: Icons.person_outline_rounded,
+          ),
           const SizedBox(height: 10),
           ProfileSettingsSection(
             readPreferences: () => _draftPreferences,
@@ -277,8 +280,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onSave: _persist,
             formRevision: _formRevision,
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Pay & currency'),
+          const SizedBox(height: 20),
+          const SectionHeading(
+            title: 'Pay & currency',
+            icon: Icons.payments_outlined,
+          ),
           const SizedBox(height: 10),
           PaySettingsSection(
             readPreferences: () => _draftPreferences,
@@ -289,8 +295,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onCurrencyChanged: _confirmCurrencyChange,
             onRateChanged: _updateRate,
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Work defaults'),
+          const SizedBox(height: 20),
+          const SectionHeading(
+            title: 'Work defaults',
+            icon: Icons.tune_rounded,
+          ),
           const SizedBox(height: 10),
           WorkDefaultsSection(
             readPreferences: () => _draftPreferences,
@@ -298,8 +307,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onSave: _persist,
             formRevision: _formRevision,
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Pay schedule'),
+          const SizedBox(height: 20),
+          const SectionHeading(
+            title: 'Pay schedule',
+            icon: Icons.event_repeat_outlined,
+          ),
           const SizedBox(height: 10),
           PayScheduleSection(
             readPreferences: () => _draftPreferences,
@@ -309,8 +321,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onScheduleChanged: _updatePaySchedule,
             onChooseAnchorDate: _chooseAnchorDate,
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Appearance'),
+          const SizedBox(height: 20),
+          const SectionHeading(
+            title: 'Appearance',
+            icon: Icons.palette_outlined,
+          ),
           const SizedBox(height: 10),
           Card(
             child: Padding(
@@ -380,8 +395,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Security'),
+          const SizedBox(height: 20),
+          const SectionHeading(title: 'Security', icon: Icons.shield_outlined),
           const SizedBox(height: 10),
           Card(
             child: Padding(
@@ -543,8 +558,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          const SectionHeading(title: 'Data & backup'),
+          const SizedBox(height: 20),
+          const SectionHeading(
+            title: 'Data & backup',
+            icon: Icons.backup_outlined,
+          ),
           const SizedBox(height: 10),
           Card(
             child: Padding(
@@ -566,7 +584,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
           if (widget.privacyOptionsRequired) ...[
             const SectionHeading(title: 'Advertising'),
             const SizedBox(height: 10),
@@ -593,7 +611,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
           ],
           const SectionHeading(title: 'Briska Pay'),
           const SizedBox(height: 10),
@@ -609,7 +627,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           if (widget.showTesterTools ?? showBetaTools) ...[
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             const SectionHeading(title: 'Beta feedback'),
             const SizedBox(height: 10),
             Card(

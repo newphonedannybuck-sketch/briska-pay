@@ -87,6 +87,8 @@ class _EntriesScreenState extends State<EntriesScreen> {
             onAddDate: widget.onAddDate,
           ),
           const SizedBox(height: 24),
+          const SectionHeading(title: 'Find a day', icon: Icons.search_rounded),
+          const SizedBox(height: 12),
           TextField(
             onChanged: (value) => setState(() => _query = value),
             decoration: const InputDecoration(
@@ -221,7 +223,6 @@ class _EntriesScreenState extends State<EntriesScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.keyboard_arrow_down_rounded),
                 ],
               ),
             ),

@@ -772,8 +772,12 @@ class _ExportSection extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 15,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  foregroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onPrimaryContainer,
                   child: Text(
                     '$number',
                     style: const TextStyle(fontWeight: FontWeight.w700),

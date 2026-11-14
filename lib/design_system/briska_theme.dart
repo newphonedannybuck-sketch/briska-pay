@@ -257,7 +257,6 @@ abstract final class BriskaTheme {
         contentTextStyle: TextStyle(
           fontFamily: BriskaTypography.family,
           color: isDark ? BriskaColors.dark : Colors.white,
-          fontFamily: BriskaTypography.family,
           fontWeight: FontWeight.w600,
         ),
         shape: RoundedRectangleBorder(

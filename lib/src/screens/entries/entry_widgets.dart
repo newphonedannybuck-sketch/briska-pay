@@ -23,55 +23,69 @@ class EntrySaveBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final compact =
+        keyboardOpen ||
+        MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final saveButton = BriskaPrimaryButton(
+      onPressed: onSave,
+      icon: Icons.check_rounded,
+      label: label,
+    );
+    final amount = calculation.isValid
+        ? formatMoney(calculation.totalPay)
+        : '--';
     return Material(
-      color: colors.surface,
-      elevation: 0,
-      shape: Border(top: BorderSide(color: colors.outlineVariant)),
+      color: theme.colorScheme.surface,
+      shape: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
       child: SafeArea(
         top: false,
-        minimum: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-        child: Row(
-          children: [
-            if (!keyboardOpen) ...[
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Estimated gross pay',
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+        minimum: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: compact
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!keyboardOpen) ...[
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 12,
+                      children: [
+                        Text(
+                          'Estimated gross pay',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Text(amount, style: theme.textTheme.titleMedium),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      calculation.isValid
-                          ? formatMoney(calculation.totalPay)
-                          : '--',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    const SizedBox(height: 8),
                   ],
-                ),
+                  saveButton,
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Estimated gross pay',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(amount, style: theme.textTheme.titleLarge),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 170, child: saveButton),
+                ],
               ),
-              const SizedBox(width: 16),
-            ],
-            SizedBox(
-              width: keyboardOpen ? 176 : 170,
-              child: BriskaPrimaryButton(
-                onPressed: onSave,
-                icon: Icons.check_rounded,
-                label: label,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

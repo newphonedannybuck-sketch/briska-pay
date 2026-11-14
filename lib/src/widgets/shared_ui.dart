@@ -205,15 +205,21 @@ class SectionHeading extends StatelessWidget {
   const SectionHeading({
     required this.title,
     this.action,
+    this.icon,
     this.onTap,
     super.key,
   });
   final String title;
   final String? action;
+  final IconData? icon;
   final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Row(
     children: [
+      if (icon != null) ...[
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 10),
+      ],
       Expanded(
         child: Semantics(
           header: true,

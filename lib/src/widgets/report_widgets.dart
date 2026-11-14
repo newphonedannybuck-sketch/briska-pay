@@ -15,7 +15,13 @@ class ReportRow extends StatelessWidget {
       Icon(icon, color: Theme.of(context).colorScheme.primary),
       const SizedBox(width: 12),
       Expanded(child: Text(label)),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
     ],
   );
 }

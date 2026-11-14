@@ -621,7 +621,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
             const SizedBox(height: 24),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

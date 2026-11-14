@@ -1,7 +1,6 @@
 import 'detail_text.dart';
 import 'package:flutter/material.dart';
 import '../models.dart';
-import '../../design_system/briska_colors.dart';
 import '../display_format.dart';
 import '../presentation_format.dart';
 import '../work_calculator.dart';
@@ -33,7 +32,7 @@ class WorkEntryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 54,
+                  width: 58,
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
                     color: Theme.of(
@@ -48,13 +47,13 @@ class WorkEntryCard extends StatelessWidget {
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontSize: 10,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: .7,
                         ),
                       ),
                       Text(
                         formatCompactDate(entry.date),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -89,29 +88,25 @@ class WorkEntryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        formatMoney(entry.totalPay),
-                        textAlign: TextAlign.end,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        formatHoursLabel(entry.totalHours),
-                        textAlign: TextAlign.end,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    formatMoney(entry.totalPay),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  formatHoursLabel(entry.totalHours),
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
             ),
@@ -218,7 +213,7 @@ class WorkEntryCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onDelete,
                     style: TextButton.styleFrom(
-                      foregroundColor: BriskaColors.danger,
+                      foregroundColor: Theme.of(context).colorScheme.error,
                     ),
                     icon: const Icon(Icons.delete_outline_rounded, size: 18),
                     label: const Text('Delete'),

@@ -1,7 +1,6 @@
 import '../../widgets/detail_text.dart';
 import 'package:flutter/material.dart';
 import '../../models.dart';
-import '../../../design_system/briska_colors.dart';
 import '../../currency.dart';
 import '../../display_format.dart';
 import '../../presentation_format.dart';
@@ -35,12 +34,12 @@ class ExportedFileCard extends StatelessWidget {
 
   ExportFormat get _format => ExportFormat.fromFileType(record.fileType);
 
-  String get _icon {
+  IconData get _icon {
     return switch (_format) {
-      ExportFormat.excel => '📗',
-      ExportFormat.pdfTimesheet => '📕',
-      ExportFormat.pdfSummary => '📄',
-      ExportFormat.csv => '📊',
+      ExportFormat.excel => Icons.table_chart_outlined,
+      ExportFormat.pdfTimesheet => Icons.picture_as_pdf_outlined,
+      ExportFormat.pdfSummary => Icons.description_outlined,
+      ExportFormat.csv => Icons.grid_on_outlined,
     };
   }
 
@@ -65,7 +64,11 @@ class ExportedFileCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
-                    child: Text(_icon, style: const TextStyle(fontSize: 24)),
+                    child: Icon(
+                      _icon,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 24,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -180,7 +183,7 @@ class ExportedFileCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onDelete,
                   style: TextButton.styleFrom(
-                    foregroundColor: BriskaColors.danger,
+                    foregroundColor: Theme.of(context).colorScheme.error,
                   ),
                   icon: const Icon(Icons.delete_outline_rounded, size: 18),
                   label: const Text('Delete'),

@@ -36,6 +36,7 @@ class EntryDayTypeSelector extends StatelessWidget {
               entryType == option.$1.storageValue ||
               (isBankHoliday && option.$1 == EntryType.bankHoliday);
           return ChoiceChip(
+            showCheckmark: false,
             key: ValueKey('day-type-${option.$1.name}'),
             selected: selected,
             avatar: Icon(option.$3, size: 18),

@@ -153,6 +153,15 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
                   ],
                 ),
                 SizedBox(height: compact ? 10 : 14),
+                if (availableCalendarWidth < minimumCalendarWidth) ...[
+                  Text(
+                    'Swipe calendar to see all dates',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 SingleChildScrollView(
                   key: const ValueKey('calendar-horizontal-scroll'),
                   scrollDirection: Axis.horizontal,
