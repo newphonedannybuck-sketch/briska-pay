@@ -1,4 +1,11 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../models.dart';
+import '../display_format.dart';
+import '../presentation_format.dart';
+import '../work_calculator.dart';
+import '../widgets/shared_ui.dart';
+import '../widgets/work_entry_card.dart';
+import 'monthly_calendar_section.dart';
 
 class EntriesScreen extends StatefulWidget {
   const EntriesScreen({
@@ -43,7 +50,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
         widget.entries.where((entry) {
           final query = _query.trim().toLowerCase();
           final searchText = [
-            _entryTitle(entry),
+            entryTitle(entry),
             entry.notes,
             widget.settings.labelForRate(entry.rateType),
           ].join(' ').toLowerCase();

@@ -1,4 +1,12 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../../design_system/briska_colors.dart';
+import '../../design_system/briska_radius.dart';
+import '../../design_system/briska_theme.dart';
+import '../models.dart';
+import '../display_format.dart';
+import '../presentation_format.dart';
+import '../pay_schedule.dart';
+import '../work_calculator.dart';
 
 class MonthlyCalendarSection extends StatefulWidget {
   const MonthlyCalendarSection({
@@ -134,7 +142,7 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
                     Expanded(
                       child: _CalendarMetric(
                         label: 'Estimated gross pay',
-                        value: _money(summary.totalExpectedPay),
+                        value: formatMoney(summary.totalExpectedPay),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -155,7 +163,7 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
                         Row(
                           key: const ValueKey('calendar-weekday-row'),
                           children: [
-                            for (final dayName in _dayNames)
+                            for (final dayName in shortWeekdayNames)
                               Expanded(
                                 child: Center(
                                   child: Text(
@@ -483,7 +491,7 @@ class _CalendarEntrySummary extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _entryTitle(entry),
+                    entryTitle(entry),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w800),
@@ -501,7 +509,7 @@ class _CalendarEntrySummary extends StatelessWidget {
               ),
             ),
             Text(
-              _money(entry.totalPay),
+              formatMoney(entry.totalPay),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 4),
@@ -564,7 +572,7 @@ class _CalendarDayTile extends StatelessWidget {
     return Semantics(
       button: true,
       label:
-          '${date.day} ${_fullMonthNames[date.month - 1]}, $label${isToday ? ', today' : ''}${selected ? ', selected' : ''}${inCurrentPayPeriod ? ', current pay period' : ''}',
+          '${date.day} ${fullMonthNames[date.month - 1]}, $label${isToday ? ', today' : ''}${selected ? ', selected' : ''}${inCurrentPayPeriod ? ', current pay period' : ''}',
       child: InkWell(
         borderRadius: BorderRadius.circular(BriskaRadii.md),
         onTap: onTap,

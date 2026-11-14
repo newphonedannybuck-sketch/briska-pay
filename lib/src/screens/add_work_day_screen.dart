@@ -818,12 +818,12 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                   const SizedBox(height: 8),
                                   SelectAllTextFormField(
                                     key: ValueKey('rate-$_rateType'),
-                                    initialValue: _currencyInputValue(
+                                    initialValue: currencyInputValue(
                                       _selectedRate,
                                     ),
                                     keyboardType: TextInputType.number,
                                     decoration: InputDecoration(
-                                      prefixText: _currencyPrefix,
+                                      prefixText: currencyPrefix,
                                       suffixText: '/ hour',
                                     ),
                                     onChanged: (value) => setState(
@@ -841,14 +841,14 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                         'allowance-$_editingEntryId-$_rateType',
                                       ),
                                       initialValue: _allowanceHasValue
-                                          ? _currencyInputValue(
+                                          ? currencyInputValue(
                                               _appliedAllowance,
                                             )
                                           : '',
                                       keyboardType: TextInputType.number,
                                       textInputAction: TextInputAction.done,
                                       decoration: InputDecoration(
-                                        prefixText: _currencyPrefix,
+                                        prefixText: currencyPrefix,
                                         hintText: 'e.g. 25.00',
                                         helperText:
                                             'Optional. Leave blank for no allowance.',
@@ -910,7 +910,8 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                                   _CalculationLine(
                                     label:
                                         '${widget.preferences.labelForRate('primary')} hourly rate',
-                                    value: '${_money(_selectedRate)} / hour',
+                                    value:
+                                        '${formatMoney(_selectedRate)} / hour',
                                   ),
                                 ],
                               ),
@@ -1017,7 +1018,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                               _CalculationLine(
                                 label: 'Paid at',
                                 value:
-                                    '${widget.preferences.labelForRate('primary')} · ${_money(_selectedRate)} / hour',
+                                    '${widget.preferences.labelForRate('primary')} · ${formatMoney(_selectedRate)} / hour',
                               ),
                             ],
                             const SizedBox(height: 18),
@@ -1155,7 +1156,9 @@ class _EntrySaveBar extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      calculation.isValid ? _money(calculation.totalPay) : '--',
+                      calculation.isValid
+                          ? formatMoney(calculation.totalPay)
+                          : '--',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -1317,7 +1320,7 @@ class _OptionalCurrencyFieldState extends State<_OptionalCurrencyField> {
       focusNode: _focusNode,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
-        prefixText: _currencyPrefix,
+        prefixText: currencyPrefix,
         hintText: 'Enter amount (optional)',
       ),
       onChanged: (text) => widget.onChanged(
@@ -1425,7 +1428,7 @@ class _EarningsSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           BriskaAnimatedText(
-            _money(calculation.totalPay),
+            formatMoney(calculation.totalPay),
             style: Theme.of(
               context,
             ).textTheme.displaySmall?.copyWith(color: Colors.white),
@@ -1439,19 +1442,19 @@ class _EarningsSummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           _CalculationLine(
             label: 'Rate',
-            value: '${_money(rate)} / hour',
+            value: '${formatMoney(rate)} / hour',
             foregroundColor: Colors.white,
           ),
           const SizedBox(height: 8),
           _CalculationLine(
             label: 'Allowance',
-            value: _money(allowance),
+            value: formatMoney(allowance),
             foregroundColor: Colors.white,
           ),
           const SizedBox(height: 8),
           _CalculationLine(
             label: 'Uplift',
-            value: _money(uplift),
+            value: formatMoney(uplift),
             foregroundColor: Colors.white,
           ),
           Padding(
@@ -1463,7 +1466,7 @@ class _EarningsSummaryCard extends StatelessWidget {
           ),
           _CalculationLine(
             label: 'Estimated gross pay',
-            value: _money(calculation.totalPay),
+            value: formatMoney(calculation.totalPay),
             emphasize: true,
             foregroundColor: Colors.white,
           ),

@@ -1451,7 +1451,7 @@ class ExportCreatedDialog extends StatelessWidget {
       children: [
         Text(record.fileName, maxLines: 3, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 8),
-        Text(_formatFileSize(record.fileSize)),
+        Text(formatFileSize(record.fileSize)),
       ],
     ),
     actions: [
@@ -1492,7 +1492,7 @@ class _ExportedFileCard extends StatelessWidget {
   String get _date => formatCompactDateWithYear(record.exportedAt);
 
   String get _size {
-    return _formatFileSize(record.fileSize);
+    return formatFileSize(record.fileSize);
   }
 
   ExportFormat get _format => ExportFormat.fromFileType(record.fileType);
@@ -1554,7 +1554,7 @@ class _ExportedFileCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _money(
+                  formatMoney(
                     record.totalPay,
                     CurrencyCatalog.byCode(
                       record.currencyCode,

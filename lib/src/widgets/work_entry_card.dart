@@ -1,4 +1,9 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../models.dart';
+import '../app_theme.dart';
+import '../display_format.dart';
+import '../presentation_format.dart';
+import '../work_calculator.dart';
 
 class WorkEntryCard extends StatelessWidget {
   const WorkEntryCard({
@@ -38,7 +43,7 @@ class WorkEntryCard extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        _dayNames[entry.date.weekday - 1],
+                        shortWeekdayNames[entry.date.weekday - 1],
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontSize: 10,
@@ -59,7 +64,7 @@ class WorkEntryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _entryTitle(entry),
+                        entryTitle(entry),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
@@ -89,7 +94,7 @@ class WorkEntryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _money(entry.totalPay),
+                        formatMoney(entry.totalPay),
                         textAlign: TextAlign.end,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
@@ -160,31 +165,34 @@ class WorkEntryCard extends StatelessWidget {
                   ),
                   _EntryDetail(
                     label: 'Rate',
-                    value: '${_money(entry.hourlyRateUsed)}/hr',
+                    value: '${formatMoney(entry.hourlyRateUsed)}/hr',
                   ),
-                  _EntryDetail(label: 'Base pay', value: _money(entry.wages)),
+                  _EntryDetail(
+                    label: 'Base pay',
+                    value: formatMoney(entry.wages),
+                  ),
                   if (entry.dailyAllowance != 0)
                     _EntryDetail(
                       label: 'Daily allowance',
-                      value: _money(entry.dailyAllowance),
+                      value: formatMoney(entry.dailyAllowance),
                     ),
                   if (entry.jobUplift > 0)
                     _EntryDetail(
                       label: 'Job uplift',
-                      value: _money(entry.jobUplift),
+                      value: formatMoney(entry.jobUplift),
                     ),
                   _EntryDetail(
                     label: 'Estimated gross pay',
-                    value: _money(entry.totalPay),
+                    value: formatMoney(entry.totalPay),
                   ),
                   if (entry.deductionAmount > 0) ...[
                     _EntryDetail(
                       label: 'Deduction',
-                      value: _money(entry.deductionAmount),
+                      value: formatMoney(entry.deductionAmount),
                     ),
                     _EntryDetail(
                       label: 'Final pay',
-                      value: _money(entry.netPay),
+                      value: formatMoney(entry.netPay),
                     ),
                     if (entry.deductionReason.trim().isNotEmpty)
                       _EntryDetail(

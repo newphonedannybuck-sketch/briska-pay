@@ -735,7 +735,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
             children: [
               _PreviewLine(
                 label: 'Backup date',
-                value: _dateTimeLabel(preview.createdAt),
+                value: formatDateTime(preview.createdAt),
               ),
               _PreviewLine(
                 label: 'User',

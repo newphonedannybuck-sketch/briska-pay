@@ -41,10 +41,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _companyName = TextEditingController(text: settings.companyName);
     _primaryRateLabel = TextEditingController(text: settings.primaryRateLabel);
     _homeRate = TextEditingController(
-      text: _currencyInputValue(settings.primaryRateValue),
+      text: currencyInputValue(settings.primaryRateValue),
     );
     _awayRate = TextEditingController(
-      text: _currencyInputValue(settings.secondaryRateValue),
+      text: currencyInputValue(settings.secondaryRateValue),
     );
     _secondaryRateLabel = TextEditingController(
       text: settings.secondaryRateLabel,
@@ -415,7 +415,7 @@ class _CurrencyControllerFieldState extends State<_CurrencyControllerField> {
         textInputAction: widget.textInputAction,
         onSubmitted: widget.onSubmitted,
         decoration: InputDecoration(
-          prefixText: _currencyPrefix,
+          prefixText: currencyPrefix,
           hintText: widget.hintText,
         ),
       ),

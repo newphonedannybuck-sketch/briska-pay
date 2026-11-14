@@ -359,13 +359,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 8),
                   SelectAllTextFormField(
                     key: ValueKey('homeRate-$_formRevision'),
-                    initialValue: _currencyInputValue(
+                    initialValue: currencyInputValue(
                       _draftPreferences.primaryRateValue,
                     ),
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
-                      prefixText: _currencyPrefix,
+                      prefixText: currencyPrefix,
                       hintText: 'e.g. 20.00',
                     ),
                     onChanged: (value) => _updateRate(value, primary: true),
@@ -401,13 +401,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 8),
                   SelectAllTextFormField(
                     key: ValueKey('awayRate-$_formRevision'),
-                    initialValue: _currencyInputValue(
+                    initialValue: currencyInputValue(
                       _draftPreferences.secondaryRateValue,
                     ),
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
-                      prefixText: _currencyPrefix,
+                      prefixText: currencyPrefix,
                       hintText: 'e.g. 25.00',
                     ),
                     onChanged: (value) => _updateRate(value, primary: false),
@@ -1181,14 +1181,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             DateTime.daysPerWeek,
             (index) => DropdownMenuItem(
               value: index + DateTime.monday,
-              child: Text(_weekdayNames[index]),
+              child: Text(weekdayNames[index]),
             ),
           ),
           onChanged: (value) => _updatePaySchedule(
             _draftPreferences.copyWith(
               paydaySelectedWeekday: value,
-              paydayWeekday: value == null ? null : _weekdayNames[value - 1],
-              payDay: value == null ? null : _weekdayNames[value - 1],
+              paydayWeekday: value == null ? null : weekdayNames[value - 1],
+              payDay: value == null ? null : weekdayNames[value - 1],
             ),
           ),
         ),

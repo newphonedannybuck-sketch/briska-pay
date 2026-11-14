@@ -1,4 +1,14 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../../design_system/briska_colors.dart';
+import '../../design_system/briska_cards.dart';
+import '../../design_system/briska_theme.dart';
+import '../../features/export/models/export_config.dart';
+import '../models.dart';
+import '../display_format.dart';
+import '../presentation_format.dart';
+import '../work_calculator.dart';
+import '../widgets/shared_ui.dart';
+import '../widgets/report_widgets.dart';
 
 class ProfessionalReportsScreen extends StatefulWidget {
   const ProfessionalReportsScreen({
@@ -208,7 +218,7 @@ class _ReportsSummaryPanel extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           BriskaAnimatedText(
-            _money(earnings),
+            formatMoney(earnings),
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
               color: colors.onPrimary,
               fontWeight: FontWeight.w900,
@@ -234,7 +244,7 @@ class _ReportsSummaryPanel extends StatelessWidget {
               Expanded(
                 child: _ReportsHeroMetric(
                   label: 'Daily average',
-                  value: _money(averageDailyPay),
+                  value: formatMoney(averageDailyPay),
                 ),
               ),
             ],
@@ -364,7 +374,7 @@ class _ReportBreakdownRow extends StatelessWidget {
               ),
             ),
             Text(
-              _money(value),
+              formatMoney(value),
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
           ],
