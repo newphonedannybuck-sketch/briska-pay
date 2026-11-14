@@ -396,3 +396,22 @@ class _ReportsEmptyState extends StatelessWidget {
     );
   }
 }
+
+class _ReportRow extends StatelessWidget {
+  const _ReportRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label, value;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 12),
+      Expanded(child: Text(label)),
+      Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+    ],
+  );
+}

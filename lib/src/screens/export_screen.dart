@@ -138,7 +138,6 @@ class _ExportScreenState extends State<ExportScreen> {
   }
 
   bool _isExporting = false;
-  bool isPreviewing = false;
   bool _showMoreOptions = false;
   String _librarySort = 'Newest';
   String _libraryFilter = 'All';
@@ -773,80 +772,6 @@ class _ExportScreenState extends State<ExportScreen> {
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
-  }
-
-  Future<void> showPreview(
-    BuildContext context,
-    List<WorkEntry> entries,
-    String periodLabel,
-  ) async {
-    setState(() => isPreviewing = true);
-    final summary = WorkCalculator.summarize(entries);
-    if (mounted) setState(() => isPreviewing = false);
-    if (!context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('${_fileFormat.label} Preview'),
-        content: SizedBox(
-          width: 620,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_reportType.label),
-                Text(periodLabel),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Date')),
-                      DataColumn(label: Text('Site/job')),
-                      DataColumn(label: Text('Hours')),
-                      DataColumn(label: Text('Gross pay')),
-                    ],
-                    rows: entries
-                        .take(8)
-                        .map(
-                          (entry) => DataRow(
-                            cells: [
-                              DataCell(
-                                Text(formatCompactDateWithYear(entry.date)),
-                              ),
-                              DataCell(Text(entry.siteName)),
-                              DataCell(
-                                Text(formatHoursLabel(entry.totalHours)),
-                              ),
-                              DataCell(Text(_money(entry.totalPay))),
-                            ],
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-                const Divider(),
-                Text('Total hours: ${formatHoursLabel(summary.totalHours)}'),
-                Text('Gross pay: ${_money(summary.totalExpectedPay)}'),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close preview'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _performExport(context, entries, periodLabel);
-            },
-            child: const Text('Export'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _export(
@@ -1775,40 +1700,6 @@ class _LibraryDetail extends StatelessWidget {
           ),
         ),
       ],
-    ),
-  );
-}
-
-class EmptyExportLibrary extends StatelessWidget {
-  const EmptyExportLibrary({super.key});
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(
-              Icons.folder_open_outlined,
-              size: 34,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'No saved exports yet',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Reports saved to the Briska Pay Export Library will appear here.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
     ),
   );
 }

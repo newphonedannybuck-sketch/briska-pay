@@ -327,22 +327,21 @@ void main() {
     expect(find.text('Work entries'), findsNothing);
   });
 
-  testWidgets('production navigation never reaches legacy screens', (
+  testWidgets('production navigation reaches each active screen', (
     tester,
   ) async {
     await tester.pumpWidget(const BriskaApp());
 
-    for (final destination in [
-      'Home',
-      'Entries',
-      'Reports',
-      'Export',
-      'Settings',
-    ]) {
-      await tester.tap(find.text(destination).last);
+    for (final destination in {
+      'Home': HomeScreen,
+      'Entries': EntriesScreen,
+      'Reports': ProfessionalReportsScreen,
+      'Export': ExportScreen,
+      'Settings': SettingsScreen,
+    }.entries) {
+      await tester.tap(find.text(destination.key).last);
       await tester.pumpAndSettle();
-      expect(find.byType(LegacyHomeScreen), findsNothing);
-      expect(find.byType(ReportsScreen), findsNothing);
+      expect(find.byType(destination.value), findsOneWidget);
     }
   });
 

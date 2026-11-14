@@ -34,16 +34,6 @@ enum ExportFileFormat {
   final String extension;
 }
 
-enum ExportDestination {
-  downloads('Downloads'),
-  documents('Documents'),
-  exportLibrary('Export Library'),
-  chooseEveryTime('Choose Every Time');
-
-  const ExportDestination(this.label);
-  final String label;
-}
-
 class ExportDateRange {
   const ExportDateRange(this.start, this.end);
   final DateTime start;
@@ -113,73 +103,23 @@ class ExportOptions {
   const ExportOptions({
     this.includeCompanyName = true,
     this.includeEmployeeName = true,
-    this.includeBranding = true,
     this.includeSignatureLine = false,
     this.includeNotes = false,
   });
   final bool includeCompanyName;
   final bool includeEmployeeName;
-  final bool includeBranding;
   final bool includeSignatureLine;
   final bool includeNotes;
 
   ExportOptions copyWith({
     bool? includeCompanyName,
     bool? includeEmployeeName,
-    bool? includeBranding,
     bool? includeSignatureLine,
     bool? includeNotes,
   }) => ExportOptions(
     includeCompanyName: includeCompanyName ?? this.includeCompanyName,
     includeEmployeeName: includeEmployeeName ?? this.includeEmployeeName,
-    includeBranding: includeBranding ?? this.includeBranding,
     includeSignatureLine: includeSignatureLine ?? this.includeSignatureLine,
     includeNotes: includeNotes ?? this.includeNotes,
   );
-}
-
-class ExportTemplate {
-  const ExportTemplate({
-    required this.id,
-    required this.name,
-    required this.reportType,
-    required this.format,
-    required this.options,
-  });
-  final String id;
-  final String name;
-  final ExportReportType reportType;
-  final ExportFileFormat format;
-  final ExportOptions options;
-
-  static const defaults = [
-    ExportTemplate(
-      id: 'employer-timesheet',
-      name: 'Employer Timesheet',
-      reportType: ExportReportType.timesheet,
-      format: ExportFileFormat.pdf,
-      options: ExportOptions(),
-    ),
-    ExportTemplate(
-      id: 'personal-records',
-      name: 'Personal Records',
-      reportType: ExportReportType.timesheet,
-      format: ExportFileFormat.xlsx,
-      options: ExportOptions(includeNotes: true),
-    ),
-    ExportTemplate(
-      id: 'monthly-summary',
-      name: 'Monthly Summary',
-      reportType: ExportReportType.monthlyReport,
-      format: ExportFileFormat.pdf,
-      options: ExportOptions(),
-    ),
-    ExportTemplate(
-      id: 'annual-overview',
-      name: 'Annual Overview',
-      reportType: ExportReportType.annualSummary,
-      format: ExportFileFormat.pdf,
-      options: ExportOptions(),
-    ),
-  ];
 }

@@ -221,11 +221,12 @@ void main() {
     });
   });
 
-  test('default templates expose real configurations', () {
-    expect(ExportTemplate.defaults, hasLength(4));
-    expect(
-      ExportTemplate.defaults.first.reportType,
-      ExportReportType.timesheet,
-    );
+  test('export options preserve supported defaults', () {
+    const options = ExportOptions();
+    expect(options.includeCompanyName, isTrue);
+    expect(options.includeEmployeeName, isTrue);
+    expect(options.includeSignatureLine, isFalse);
+    expect(options.includeNotes, isFalse);
+    expect(options.copyWith(includeNotes: true).includeNotes, isTrue);
   });
 }
