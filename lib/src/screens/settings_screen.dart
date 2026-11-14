@@ -1,3 +1,6 @@
+import 'settings/settings_sections.dart';
+import 'settings/app_lock_pin_dialog.dart';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -10,10 +13,7 @@ import '../app_lock_service.dart';
 import '../currency.dart';
 import '../pay_schedule.dart';
 import '../release_info.dart';
-import '../presentation_format.dart';
-import '../display_format.dart';
 import '../widgets/shared_ui.dart';
-import '../widgets/form_controls.dart';
 import 'beta_checklist_screen.dart';
 import 'support_screen.dart';
 
@@ -271,329 +271,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 22),
           const SectionHeading(title: 'Profile'),
           const SizedBox(height: 10),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const FieldLabel('Full name'),
-                  const SizedBox(height: 8),
-                  _SettingsFinishedTextField(
-                    key: ValueKey('fullName-$_formRevision'),
-                    initialValue: _draftPreferences.fullName,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.next,
-                    hintText: 'Enter your full name',
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(fullName: value.trim()),
-                    ),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      successMessage: 'Personal details updated.',
-                      failureMessage: 'Could not save personal details.',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const FieldLabel('Employer / company'),
-                  const SizedBox(height: 8),
-                  _SettingsFinishedTextField(
-                    key: ValueKey('companyName-$_formRevision'),
-                    initialValue: _draftPreferences.companyName,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.done,
-                    hintText: 'Enter employer or company name',
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(companyName: value.trim()),
-                    ),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      successMessage: 'Personal details updated.',
-                      failureMessage: 'Could not save personal details.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ProfileSettingsSection(
+            readPreferences: () => _draftPreferences,
+            onChanged: _update,
+            onSave: _persist,
+            formRevision: _formRevision,
           ),
           const SizedBox(height: 22),
           const SectionHeading(title: 'Pay & currency'),
           const SizedBox(height: 10),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const FieldLabel('Currency'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(
-                      '${_draftPreferences.currency.code}-'
-                      '$_currencyPickerRevision',
-                    ),
-                    isExpanded: true,
-                    initialValue: _draftPreferences.currency.code,
-                    items: CurrencyCatalog.supported
-                        .map(
-                          (currency) => DropdownMenuItem(
-                            value: currency.code,
-                            child: Text(
-                              '${currency.displayName} · ${currency.symbol}',
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (code) {
-                      if (code != null &&
-                          code != _draftPreferences.currency.code) {
-                        _confirmCurrencyChange(CurrencyCatalog.byCode(code));
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const FieldLabel('Primary rate'),
-                  const SizedBox(height: 12),
-                  _SettingsTextField(
-                    key: ValueKey('primaryRateLabel-$_formRevision'),
-                    label: 'Name',
-                    value: _draftPreferences.primaryRateLabel,
-                    hint: 'Standard',
-                    maxLength: 24,
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(
-                        primaryRateLabel: value.trim(),
-                      ),
-                    ),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      successMessage: 'Pay rates updated.',
-                      failureMessage: 'Rate names cannot be blank.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const FieldLabel('Hourly rate'),
-                  const SizedBox(height: 8),
-                  SelectAllTextFormField(
-                    key: ValueKey('homeRate-$_formRevision'),
-                    initialValue: currencyInputValue(
-                      _draftPreferences.primaryRateValue,
-                    ),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      prefixText: currencyPrefix,
-                      hintText: 'e.g. 20.00',
-                    ),
-                    onChanged: (value) => _updateRate(value, primary: true),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      successMessage: 'Pay rates updated.',
-                      failureMessage: 'Could not save pay rates.',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(height: 32),
-                  const FieldLabel('Secondary rate'),
-                  const SizedBox(height: 12),
-                  _SettingsTextField(
-                    key: ValueKey('secondaryRateLabel-$_formRevision'),
-                    label: 'Name',
-                    value: _draftPreferences.secondaryRateLabel,
-                    hint: 'Overtime',
-                    maxLength: 24,
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(
-                        secondaryRateLabel: value.trim(),
-                      ),
-                    ),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      successMessage: 'Pay rates updated.',
-                      failureMessage: 'Rate names cannot be blank.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const FieldLabel('Hourly rate'),
-                  const SizedBox(height: 8),
-                  SelectAllTextFormField(
-                    key: ValueKey('awayRate-$_formRevision'),
-                    initialValue: currencyInputValue(
-                      _draftPreferences.secondaryRateValue,
-                    ),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      prefixText: currencyPrefix,
-                      hintText: 'e.g. 25.00',
-                    ),
-                    onChanged: (value) => _updateRate(value, primary: false),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      successMessage: 'Pay rates updated.',
-                      failureMessage: 'Could not save pay rates.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          PaySettingsSection(
+            readPreferences: () => _draftPreferences,
+            onChanged: _update,
+            onSave: _persist,
+            formRevision: _formRevision,
+            currencyPickerRevision: _currencyPickerRevision,
+            onCurrencyChanged: _confirmCurrencyChange,
+            onRateChanged: _updateRate,
           ),
           const SizedBox(height: 22),
           const SectionHeading(title: 'Work defaults'),
           const SizedBox(height: 10),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SettingsTextField(
-                          key: ValueKey('defaultStart-$_formRevision'),
-                          label: 'Default start time',
-                          value: _draftPreferences.defaultStartTime,
-                          hint: '08:00',
-                          normalizeTime: true,
-                          onChanged: (value) => _update(
-                            _draftPreferences.copyWith(defaultStartTime: value),
-                          ),
-                          onFinished: () => _persist(
-                            _draftPreferences,
-                            failureMessage: 'Could not save work defaults.',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _SettingsTextField(
-                          key: ValueKey('defaultFinish-$_formRevision'),
-                          label: 'Default finish time',
-                          value: _draftPreferences.defaultFinishTime,
-                          hint: '16:30',
-                          normalizeTime: true,
-                          onChanged: (value) => _update(
-                            _draftPreferences.copyWith(
-                              defaultFinishTime: value,
-                            ),
-                          ),
-                          onFinished: () => _persist(
-                            _draftPreferences,
-                            failureMessage: 'Could not save work defaults.',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _SettingsTextField(
-                    key: ValueKey('defaultBreak-$_formRevision'),
-                    label: 'Default break minutes',
-                    value: _draftPreferences.defaultBreakMinutes.toString(),
-                    hint: '30',
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) => _update(
-                      _draftPreferences.copyWith(
-                        defaultBreakMinutes: int.tryParse(value),
-                      ),
-                    ),
-                    onFinished: () => _persist(
-                      _draftPreferences,
-                      failureMessage: 'Could not save work defaults.',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const FieldLabel('Default rate'),
-                  const SizedBox(height: 9),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<String>(
-                      segments: [
-                        ButtonSegment(
-                          value: 'primary',
-                          label: Text(
-                            _draftPreferences.labelForRate('primary'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        ButtonSegment(
-                          value: 'secondary',
-                          label: Text(
-                            _draftPreferences.labelForRate('secondary'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                      selected: {_draftPreferences.defaultRateType},
-                      onSelectionChanged: (values) => _persist(
-                        _draftPreferences.copyWith(
-                          defaultRateType: values.first,
-                        ),
-                        failureMessage: 'Could not save work defaults.',
-                      ),
-                      showSelectedIcon: false,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          WorkDefaultsSection(
+            readPreferences: () => _draftPreferences,
+            onChanged: _update,
+            onSave: _persist,
+            formRevision: _formRevision,
           ),
           const SizedBox(height: 22),
           const SectionHeading(title: 'Pay schedule'),
           const SizedBox(height: 10),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const FieldLabel('Pay period type'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('payFrequency-$_formRevision'),
-                    isExpanded: true,
-                    initialValue: normalisePayFrequency(
-                      _draftPreferences.payFrequency,
-                    ),
-                    items:
-                        const [
-                              weeklyPayFrequency,
-                              fortnightlyPayFrequency,
-                              fourWeeklyPayFrequency,
-                              calendarMonthlyPayFrequency,
-                              customMonthlyPayFrequency,
-                              lastFridayPayFrequency,
-                            ]
-                            .map(
-                              (value) => DropdownMenuItem(
-                                value: value,
-                                child: Text(value),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      final allowedRules = _paydayRulesFor(value);
-                      final currentRule =
-                          _draftPreferences.paydayRule == paydayFollowingWeekday
-                          ? paydayNextSelectedWeekdayAfterPeriodEnd
-                          : _draftPreferences.paydayRule;
-                      _updatePaySchedule(
-                        _draftPreferences.copyWith(
-                          payFrequency: value,
-                          paydayRule: allowedRules.contains(currentRule)
-                              ? currentRule
-                              : paydayOnPeriodEnd,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  ..._payScheduleControls(context),
-                ],
-              ),
-            ),
+          PayScheduleSection(
+            readPreferences: () => _draftPreferences,
+            onChanged: _update,
+            onSave: _persist,
+            formRevision: _formRevision,
+            onScheduleChanged: _updatePaySchedule,
+            onChooseAnchorDate: _chooseAnchorDate,
           ),
           const SizedBox(height: 22),
           const SectionHeading(title: 'Appearance'),
@@ -687,10 +401,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             setState(() => _securityBusy = true);
                             try {
                               if (!value) {
-                                if (!await _pinDialog(disabling: true)) return;
+                                if (!await _showPinDialog(disabling: true)) {
+                                  return;
+                                }
                               } else {
                                 if (!widget.lockConfig.hasPin &&
-                                    !await _pinDialog(disabling: false)) {
+                                    !await _showPinDialog(disabling: false)) {
                                   return;
                                 }
                                 await widget.onLockConfigChanged(
@@ -810,7 +526,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? () async {
                             setState(() => _securityBusy = true);
                             try {
-                              if (await _pinDialog(disabling: false)) {
+                              if (await _showPinDialog(disabling: false)) {
                                 _showSettingsFeedback('PIN updated.');
                               }
                             } finally {
@@ -939,322 +655,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<bool> _pinDialog({required bool disabling}) async {
-    var current = '';
-    var pin = '';
-    var confirmation = '';
-    var saving = false;
-    String? error;
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, update) {
-          Future<void> save() async {
-            if (saving) return;
-            if (!disabling && !RegExp(r'^[0-9]{4,12}$').hasMatch(pin)) {
-              update(() => error = 'Use 4-12 numerical digits.');
-              return;
-            }
-            if (!disabling && pin != confirmation) {
-              update(() => error = 'PINs do not match.');
-              return;
-            }
-            update(() {
-              saving = true;
-              error = null;
-            });
-            try {
-              if (disabling) {
-                await widget.onDisableLock(current);
-              } else {
-                await widget.onSetLockPin(
-                  pin,
-                  widget.lockConfig.hasPin ? current : null,
-                );
-              }
-              if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-            } on PinCooldownException catch (cooldown) {
-              if (dialogContext.mounted) {
-                update(() => error = cooldown.toString());
-              }
-            } on PinVerificationException {
-              if (dialogContext.mounted) {
-                update(() => error = 'Current PIN did not match.');
-              }
-            } catch (_) {
-              if (dialogContext.mounted) {
-                update(
-                  () => error = disabling
-                      ? 'Could not update app lock.'
-                      : 'Could not update PIN.',
-                );
-              }
-            } finally {
-              if (dialogContext.mounted) update(() => saving = false);
-            }
-          }
-
-          Widget field(String label, ValueChanged<String> changed) => TextField(
-            enabled: !saving,
-            obscureText: true,
-            enableSuggestions: false,
-            autocorrect: false,
-            keyboardType: TextInputType.number,
-            onChanged: changed,
-            decoration: InputDecoration(labelText: label),
-          );
-          return PopScope(
-            canPop: !saving,
-            child: AlertDialog(
-              title: Text(
-                disabling ? 'Disable App Lock' : 'Set Briska Pay PIN',
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (disabling || widget.lockConfig.hasPin)
-                      field('Current PIN', (value) => current = value),
-                    if (!disabling) ...[
-                      field('PIN', (value) => pin = value),
-                      field('Confirm PIN', (value) => confirmation = value),
-                      const Text(
-                        'Use 4-12 numerical digits. Forgotten PINs cannot be recovered securely.',
-                      ),
-                    ],
-                    if (error != null) Text(error!),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving
-                      ? null
-                      : () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: saving ? null : save,
-                  child: Text(
-                    saving
-                        ? 'Saving...'
-                        : disabling
-                        ? 'Disable App Lock'
-                        : 'Save PIN',
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-    return result == true;
-  }
-
-  List<Widget> _payScheduleControls(BuildContext context) {
-    final type = normalisePayFrequency(_draftPreferences.payFrequency);
-    if (fixedCyclePayFrequencies.contains(type)) {
-      return [
-        Text(
-          'Periods repeat every ${type == weeklyPayFrequency
-              ? 7
-              : type == fortnightlyPayFrequency
-              ? 14
-              : 28} days from a known pay period start date.',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        const FieldLabel('Known pay period start date'),
-        const SizedBox(height: 8),
-        DatePickerTile(
-          value: _dateLabel(
-            _parseSettingsDate(_draftPreferences.payPeriodAnchorDate),
-          ),
-          isMissing: requiresPayPeriodAnchor(_draftPreferences),
-          onPressed: _chooseAnchorDate,
-        ),
-        if (requiresPayPeriodAnchor(_draftPreferences)) ...[
-          const SizedBox(height: 10),
-          Text(
-            'Choose an anchor date so Briska Pay can calculate periods forwards and backwards accurately.',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-        const SizedBox(height: 16),
-        ..._paydayRuleControls(type),
-      ];
-    }
-    if (type == calendarMonthlyPayFrequency) {
-      return [
-        Text(
-          'Period runs from the first to the last day of each month.',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ..._paydayRuleControls(type),
-      ];
-    }
-    if (type == customMonthlyPayFrequency) {
-      return [
-        const FieldLabel('Period start day'),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<int>(
-          initialValue: _draftPreferences.customPeriodStartDay.clamp(1, 31),
-          items: List.generate(
-            31,
-            (index) =>
-                DropdownMenuItem(value: index + 1, child: Text('${index + 1}')),
-          ),
-          onChanged: (value) => _updatePaySchedule(
-            _draftPreferences.copyWith(customPeriodStartDay: value),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'The period ends on the day before the next period begins.',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ..._paydayRuleControls(type),
-      ];
-    }
-    return [
-      Text(
-        'Period starts on the first Monday after the previous month\'s last Friday, ends on the current month\'s last Friday, and payday is the current month\'s last Friday.',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _paydayRuleControls(String type) {
-    final allowedRules = _paydayRulesFor(type);
-    final storedRule = _draftPreferences.paydayRule == paydayFollowingWeekday
-        ? paydayNextSelectedWeekdayAfterPeriodEnd
-        : _draftPreferences.paydayRule;
-    final rule = allowedRules.contains(storedRule)
-        ? storedRule
-        : paydayOnPeriodEnd;
-    final widgets = <Widget>[
-      const FieldLabel('Payday rule'),
-      const SizedBox(height: 8),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        initialValue: rule,
-        items: allowedRules
-            .map((value) => DropdownMenuItem(value: value, child: Text(value)))
-            .toList(),
-        onChanged: (value) =>
-            _updatePaySchedule(_draftPreferences.copyWith(paydayRule: value)),
-      ),
-    ];
-    if (rule == paydayDaysAfterPeriodEnd) {
-      widgets.addAll([
-        const SizedBox(height: 16),
-        _SettingsTextField(
-          label: 'Days after period end',
-          value: _draftPreferences.paydayOffsetDays.toString(),
-          hint: '0',
-          keyboardType: TextInputType.number,
-          onChanged: (value) => _update(
-            _draftPreferences.copyWith(paydayOffsetDays: int.tryParse(value)),
-          ),
-          onFinished: () => _persist(
-            _draftPreferences,
-            successMessage: 'Pay schedule updated.',
-            failureMessage: 'Could not update pay schedule.',
-          ),
-        ),
-      ]);
-    }
-    if (rule == paydayNextSelectedWeekdayAfterPeriodEnd) {
-      widgets.addAll([
-        const SizedBox(height: 16),
-        const FieldLabel('Payday weekday'),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<int>(
-          isExpanded: true,
-          initialValue: _draftPreferences.paydaySelectedWeekday.clamp(
-            DateTime.monday,
-            DateTime.sunday,
-          ),
-          items: List.generate(
-            DateTime.daysPerWeek,
-            (index) => DropdownMenuItem(
-              value: index + DateTime.monday,
-              child: Text(weekdayNames[index]),
-            ),
-          ),
-          onChanged: (value) => _updatePaySchedule(
-            _draftPreferences.copyWith(
-              paydaySelectedWeekday: value,
-              paydayWeekday: value == null ? null : weekdayNames[value - 1],
-              payDay: value == null ? null : weekdayNames[value - 1],
-            ),
-          ),
-        ),
-      ]);
-    }
-    if (rule == paydayFixedDaySameMonth ||
-        rule == paydayFixedDayFollowingMonth) {
-      widgets.addAll([
-        const SizedBox(height: 16),
-        const FieldLabel('Fixed calendar day'),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<int>(
-          initialValue: _draftPreferences.paydayFixedDay.clamp(1, 31),
-          items: List.generate(
-            31,
-            (index) =>
-                DropdownMenuItem(value: index + 1, child: Text('${index + 1}')),
-          ),
-          onChanged: (value) => _updatePaySchedule(
-            _draftPreferences.copyWith(paydayFixedDay: value),
-          ),
-        ),
-      ]);
-    }
-    return widgets;
-  }
-
-  List<String> _paydayRulesFor(String type) {
-    final normalised = normalisePayFrequency(type);
-    if (fixedCyclePayFrequencies.contains(normalised)) {
-      return const [
-        paydayOnPeriodEnd,
-        paydayDaysAfterPeriodEnd,
-        paydayNextSelectedWeekdayAfterPeriodEnd,
-      ];
-    }
-    if (normalised == lastFridayPayFrequency) {
-      return const [paydayOnPeriodEnd];
-    }
-    return const [
-      paydayOnPeriodEnd,
-      paydayDaysAfterPeriodEnd,
-      paydayNextSelectedWeekdayAfterPeriodEnd,
-      paydayFixedDaySameMonth,
-      paydayFixedDayFollowingMonth,
-      paydayLastWorkingDaySameMonth,
-      paydayLastFridayOfMonth,
-    ];
-  }
+  Future<bool> _showPinDialog({required bool disabling}) =>
+      showAppLockPinDialog(
+        context,
+        disabling: disabling,
+        hasPin: () => widget.lockConfig.hasPin,
+        onDisableLock: (pin) => widget.onDisableLock(pin),
+        onSetLockPin: (pin, current) => widget.onSetLockPin(pin, current),
+      );
 
   Future<void> _showAnchorPrompt() async {
     if (!_canPresent) return;
@@ -1318,130 +726,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _settingsDateValue(DateTime date) {
     String two(int value) => value.toString().padLeft(2, '0');
     return '${date.year}-${two(date.month)}-${two(date.day)}';
-  }
-
-  String _dateLabel(DateTime? date) {
-    if (date == null) return 'Choose date';
-    return formatFullDate(date);
-  }
-}
-
-class _SettingsTextField extends StatelessWidget {
-  const _SettingsTextField({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.hint,
-    required this.onChanged,
-    this.keyboardType,
-    this.normalizeTime = false,
-    this.onFinished,
-    this.maxLength,
-  });
-
-  final String label;
-  final String value;
-  final String hint;
-  final ValueChanged<String> onChanged;
-  final TextInputType? keyboardType;
-  final bool normalizeTime;
-  final VoidCallback? onFinished;
-  final int? maxLength;
-
-  @override
-  Widget build(BuildContext context) {
-    if (normalizeTime) {
-      return TimeInputField(
-        label: label,
-        hint: hint,
-        initialValue: value,
-        onChanged: onChanged,
-        onFinished: onFinished,
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FieldLabel(label),
-        const SizedBox(height: 8),
-        SelectAllTextFormField(
-          initialValue: value,
-          keyboardType: keyboardType,
-          maxLength: maxLength,
-          decoration: InputDecoration(hintText: hint),
-          onChanged: onChanged,
-          onFinished: onFinished,
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsFinishedTextField extends StatefulWidget {
-  const _SettingsFinishedTextField({
-    super.key,
-    required this.initialValue,
-    required this.hintText,
-    required this.onChanged,
-    required this.onFinished,
-    required this.textInputAction,
-    this.textCapitalization = TextCapitalization.none,
-  });
-
-  final String initialValue;
-  final String hintText;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onFinished;
-  final TextInputAction textInputAction;
-  final TextCapitalization textCapitalization;
-
-  @override
-  State<_SettingsFinishedTextField> createState() =>
-      _SettingsFinishedTextFieldState();
-}
-
-class _SettingsFinishedTextFieldState
-    extends State<_SettingsFinishedTextField> {
-  late final FocusNode _focusNode;
-  bool _edited = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode()..addListener(_handleFocusChanged);
-  }
-
-  void _finishIfEdited() {
-    if (!_edited) return;
-    _edited = false;
-    widget.onFinished();
-  }
-
-  void _handleFocusChanged() {
-    if (!_focusNode.hasFocus) _finishIfEdited();
-  }
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_handleFocusChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      initialValue: widget.initialValue,
-      focusNode: _focusNode,
-      textCapitalization: widget.textCapitalization,
-      textInputAction: widget.textInputAction,
-      decoration: InputDecoration(hintText: widget.hintText),
-      onChanged: (value) {
-        _edited = true;
-        widget.onChanged(value);
-      },
-      onFieldSubmitted: (_) => _finishIfEdited(),
-    );
   }
 }
