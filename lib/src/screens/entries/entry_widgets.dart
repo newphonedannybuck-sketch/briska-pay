@@ -26,8 +26,8 @@ class EntrySaveBar extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Material(
       color: colors.surface,
-      elevation: 12,
-      shadowColor: Colors.black.withValues(alpha: .12),
+      elevation: 0,
+      shape: Border(top: BorderSide(color: colors.outlineVariant)),
       child: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(20, 10, 20, 10),
@@ -288,27 +288,12 @@ class EarningsSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.primary,
-            Color.lerp(colorScheme.primary, BriskaColors.dark, .3)!,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: .18),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: BriskaColors.hero,
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

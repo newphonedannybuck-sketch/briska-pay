@@ -140,7 +140,7 @@ class EmptyWorkState extends StatelessWidget {
 class AppPage extends StatelessWidget {
   const AppPage({
     required this.child,
-    this.topPadding = BriskaSpacing.lg,
+    this.topPadding = BriskaSpacing.md,
     super.key,
   });
   final Widget child;
@@ -178,23 +178,27 @@ class AppPage extends StatelessWidget {
 class PageHeading extends StatelessWidget {
   const PageHeading({required this.title, required this.subtitle, super.key});
   final String title, subtitle;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.headlineLarge),
-        const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      header: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: theme.textTheme.headlineLarge),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class SectionHeading extends StatelessWidget {
@@ -211,7 +215,10 @@ class SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       Expanded(
-        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        child: Semantics(
+          header: true,
+          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        ),
       ),
       if (action != null) TextButton(onPressed: onTap, child: Text(action!)),
     ],

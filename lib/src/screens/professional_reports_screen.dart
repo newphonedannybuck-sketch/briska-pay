@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/briska_colors.dart';
 import '../../design_system/briska_cards.dart';
-import '../../design_system/briska_theme.dart';
 import '../../features/export/models/export_config.dart';
 import '../models.dart';
 import '../display_format.dart';
@@ -193,16 +192,12 @@ class _ReportsSummaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: colors.primary,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: BriskaShadows.card(
-          Theme.of(context).brightness == Brightness.dark,
-        ),
+        color: BriskaColors.hero,
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,18 +205,22 @@ class _ReportsSummaryPanel extends StatelessWidget {
           Text(
             'ESTIMATED GROSS PAY',
             style: TextStyle(
-              color: colors.onPrimary.withValues(alpha: .72),
+              color: Colors.white.withValues(alpha: .72),
               fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
             ),
           ),
           const SizedBox(height: 5),
-          BriskaAnimatedText(
-            formatMoney(earnings),
-            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              color: colors.onPrimary,
-              fontWeight: FontWeight.w900,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: BriskaAnimatedText(
+              formatMoney(earnings),
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -263,7 +262,7 @@ class _ReportsHeroMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+    const onPrimary = Colors.white;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(

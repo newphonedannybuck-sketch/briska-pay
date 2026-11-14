@@ -11,18 +11,19 @@ abstract final class BriskaTypography {
     );
     return theme.copyWith(
       displaySmall: theme.displaySmall?.copyWith(
-        fontSize: 36,
+        fontSize: 40,
+        fontFeatures: const [FontFeature.tabularFigures()],
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
         height: 1.08,
       ),
       headlineLarge: theme.headlineLarge?.copyWith(
-        fontSize: 30,
+        fontSize: 28,
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
       ),
       headlineMedium: theme.headlineMedium?.copyWith(
-        fontSize: 26,
+        fontSize: 22,
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
         height: 1.16,
@@ -33,7 +34,7 @@ abstract final class BriskaTypography {
         letterSpacing: 0,
       ),
       titleLarge: theme.titleLarge?.copyWith(
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
       ),
@@ -47,8 +48,8 @@ abstract final class BriskaTypography {
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
       ),
-      bodyLarge: theme.bodyLarge?.copyWith(fontSize: 16, height: 1.45),
-      bodyMedium: theme.bodyMedium?.copyWith(fontSize: 14, height: 1.45),
+      bodyLarge: theme.bodyLarge?.copyWith(fontSize: 15, height: 1.5),
+      bodyMedium: theme.bodyMedium?.copyWith(fontSize: 14, height: 1.5),
       bodySmall: theme.bodySmall?.copyWith(fontSize: 12, height: 1.4),
       labelLarge: theme.labelLarge?.copyWith(
         fontSize: 14,

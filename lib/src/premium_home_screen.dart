@@ -67,7 +67,7 @@ class HomeScreen extends StatelessWidget {
                 ? 'Add your first day to start tracking your pay.'
                 : 'Welcome back.',
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _Entrance(
             child: _PayPeriodPager(
               entries: entries,
@@ -84,7 +84,7 @@ class HomeScreen extends StatelessWidget {
               onConfigure: onConfigurePayday,
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
           const SectionHeading(title: 'Quick actions'),
           const SizedBox(height: 14),
           _Entrance(
@@ -96,7 +96,7 @@ class HomeScreen extends StatelessWidget {
               onOpenExport: onOpenExport,
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
           SectionHeading(
             title: 'Recent activity',
             action: 'View all',
@@ -252,7 +252,7 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(10) / 10;
-    final pagerHeight = 335.0 + ((textScale - 1).clamp(0, 3) * 350);
+    final pagerHeight = 328.0 + ((textScale - 1).clamp(0, 3) * 350);
     return Column(
       children: [
         SizedBox(
@@ -332,7 +332,6 @@ class _EarningsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final periodProgress = calculateCalendarPeriodProgress(
       periodStart: periodStart,
       periodEnd: periodEnd,
@@ -343,22 +342,8 @@ class _EarningsHero extends StatelessWidget {
         final compact = constraints.maxWidth < 360;
         return Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colors.primary,
-                Color.lerp(colors.primary, BriskaColors.dark, .3)!,
-              ],
-            ),
+            color: BriskaColors.hero,
             borderRadius: BorderRadius.circular(BriskaRadii.xl),
-            boxShadow: [
-              BoxShadow(
-                color: colors.primary.withValues(alpha: .22),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
-              ),
-            ],
           ),
           padding: EdgeInsets.all(compact ? 20 : 26),
           child: Column(
@@ -370,7 +355,7 @@ class _EarningsHero extends StatelessWidget {
                     child: Text(
                       title,
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: const Color(0xFFD5EADF),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.1,
@@ -402,11 +387,12 @@ class _EarningsHero extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              const Spacer(),
               Text(
                 'Estimated gross pay',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: .76),
+                  color: Colors.white.withValues(alpha: .88),
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -419,14 +405,15 @@ class _EarningsHero extends StatelessWidget {
                   formatMoney(summary.totalExpectedPay),
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: compact ? 38 : 48,
+                    fontSize: compact ? 40 : 48,
                     height: 1.05,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -1.2,
+                    letterSpacing: -.8,
                   ),
                 ),
               ),
               const SizedBox(height: 17),
+              const Spacer(),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -453,7 +440,8 @@ class _EarningsHero extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              const Spacer(),
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 spacing: 8,
@@ -786,7 +774,7 @@ class _QuickActionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
           child: Column(
             children: [
-              Icon(icon, color: primary ? Colors.white : colors.primary),
+              Icon(icon, color: primary ? colors.onPrimary : colors.primary),
               const SizedBox(height: 8),
               Text(
                 label,
@@ -794,7 +782,7 @@ class _QuickActionButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: primary ? Colors.white : colors.onSurface,
+                  color: primary ? colors.onPrimary : colors.onSurface,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),

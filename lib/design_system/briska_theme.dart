@@ -14,9 +14,9 @@ abstract final class BriskaDurations {
 abstract final class BriskaShadows {
   static List<BoxShadow> card(bool isDark) => [
     BoxShadow(
-      color: Colors.black.withValues(alpha: isDark ? .22 : .08),
-      blurRadius: isDark ? 18 : 26,
-      offset: const Offset(0, 14),
+      color: Colors.black.withValues(alpha: isDark ? .12 : .04),
+      blurRadius: 10,
+      offset: const Offset(0, 3),
     ),
   ];
 }
@@ -33,15 +33,29 @@ abstract final class BriskaTheme {
           seedColor: BriskaColors.primary,
           brightness: brightness,
         ).copyWith(
-          primary: BriskaColors.primary,
-          onPrimary: Colors.white,
-          secondary: BriskaColors.accent,
+          primary: isDark ? BriskaColors.darkPrimary : BriskaColors.primary,
+          onPrimary: isDark ? BriskaColors.onDarkPrimary : Colors.white,
+          secondary: isDark ? BriskaColors.darkPrimary : BriskaColors.accent,
+          primaryContainer: isDark
+              ? BriskaColors.darkSuccessTint
+              : BriskaColors.successTint,
+          onPrimaryContainer: isDark
+              ? BriskaColors.darkPrimary
+              : BriskaColors.hero,
+          surfaceContainerHighest: isDark
+              ? BriskaColors.elevatedSurface
+              : const Color(0xFFEBF0EA),
+          surfaceContainerLow: isDark ? BriskaColors.surface : Colors.white,
+          outline: isDark ? BriskaColors.darkBorder : const Color(0xFF809386),
+          outlineVariant: isDark
+              ? BriskaColors.darkBorder
+              : BriskaColors.border,
           surface: isDark ? BriskaColors.surface : Colors.white,
           onSurface: isDark ? BriskaColors.text : BriskaColors.lightText,
           onSurfaceVariant: isDark
               ? BriskaColors.secondaryText
               : BriskaColors.lightSecondaryText,
-          error: BriskaColors.danger,
+          error: isDark ? BriskaColors.darkDanger : BriskaColors.danger,
         );
 
     final textTheme = BriskaTypography.apply(base.textTheme, colors.onSurface);
@@ -56,17 +70,13 @@ abstract final class BriskaTheme {
       cardTheme: CardThemeData(
         color: colors.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: isDark ? 0 : 1.5,
+        elevation: 0,
         shadowColor: Colors.black.withValues(alpha: isDark ? .3 : .1),
         clipBehavior: Clip.antiAlias,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(BriskaRadii.xl),
-          side: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: .075)
-                : BriskaColors.border.withValues(alpha: .45),
-          ),
+          side: BorderSide(color: colors.outlineVariant),
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -80,19 +90,31 @@ abstract final class BriskaTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? Colors.white.withValues(alpha: .055) : Colors.white,
+        fillColor: isDark ? BriskaColors.dark : const Color(0xFFF7F9F6),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: BriskaSpacing.lg,
+          horizontal: BriskaSpacing.md,
           vertical: BriskaSpacing.md,
         ),
-        labelStyle: TextStyle(color: colors.onSurfaceVariant),
-        hintStyle: TextStyle(color: colors.onSurfaceVariant),
-        helperStyle: TextStyle(color: colors.onSurfaceVariant),
-        border: _inputBorder(isDark),
-        enabledBorder: _inputBorder(isDark),
-        focusedBorder: _inputBorder(isDark, focused: true),
-        errorBorder: _inputBorder(isDark, error: true),
-        focusedErrorBorder: _inputBorder(isDark, focused: true, error: true),
+        labelStyle: TextStyle(
+          fontFamily: BriskaTypography.family,
+          color: colors.onSurfaceVariant,
+        ),
+        hintStyle: TextStyle(
+          fontFamily: BriskaTypography.family,
+          color: colors.onSurfaceVariant,
+        ),
+        helperStyle: TextStyle(
+          fontFamily: BriskaTypography.family,
+          color: colors.onSurfaceVariant,
+          fontSize: 12,
+        ),
+        helperMaxLines: 3,
+        errorMaxLines: 3,
+        border: _inputBorder(colors),
+        enabledBorder: _inputBorder(colors),
+        focusedBorder: _inputBorder(colors, focused: true),
+        errorBorder: _inputBorder(colors, error: true),
+        focusedErrorBorder: _inputBorder(colors, focused: true, error: true),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -103,7 +125,11 @@ abstract final class BriskaTheme {
           elevation: 0,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(borderRadius: radius),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(
+            fontFamily: BriskaTypography.family,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -115,7 +141,11 @@ abstract final class BriskaTheme {
           elevation: 0,
           minimumSize: const Size(0, 52),
           shape: RoundedRectangleBorder(borderRadius: radius),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(
+            fontFamily: BriskaTypography.family,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -124,7 +154,10 @@ abstract final class BriskaTheme {
           minimumSize: const Size(0, 52),
           side: BorderSide(color: colors.primary.withValues(alpha: .42)),
           shape: RoundedRectangleBorder(borderRadius: radius),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(
+            fontFamily: BriskaTypography.family,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -134,7 +167,10 @@ abstract final class BriskaTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(BriskaRadii.md),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(
+            fontFamily: BriskaTypography.family,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -148,7 +184,7 @@ abstract final class BriskaTheme {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colors.primary,
         foregroundColor: colors.onPrimary,
-        elevation: 8,
+        elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(BriskaRadii.xl),
         ),
@@ -157,7 +193,11 @@ abstract final class BriskaTheme {
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
           textStyle: const WidgetStatePropertyAll(
-            TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            TextStyle(
+              fontFamily: BriskaTypography.family,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           side: WidgetStateProperty.resolveWith(
             (states) => BorderSide(
@@ -172,19 +212,21 @@ abstract final class BriskaTheme {
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        backgroundColor: colors.primary.withValues(alpha: .07),
-        selectedColor: colors.primary.withValues(alpha: .14),
+        backgroundColor: colors.surface,
+        selectedColor: colors.primaryContainer,
         disabledColor: colors.onSurface.withValues(alpha: .06),
-        side: BorderSide(color: colors.primary.withValues(alpha: .16)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        side: BorderSide(color: colors.outlineVariant),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BriskaRadii.md),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         labelStyle: textTheme.labelLarge,
         secondaryLabelStyle: textTheme.labelLarge?.copyWith(
           color: colors.primary,
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: isDark ? Colors.white12 : BriskaColors.border,
+        color: colors.outlineVariant,
         thickness: 1,
         space: BriskaSpacing.md,
       ),
@@ -213,6 +255,7 @@ abstract final class BriskaTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: isDark ? Colors.white : BriskaColors.dark,
         contentTextStyle: TextStyle(
+          fontFamily: BriskaTypography.family,
           color: isDark ? BriskaColors.dark : Colors.white,
           fontFamily: BriskaTypography.family,
           fontWeight: FontWeight.w600,
@@ -251,10 +294,19 @@ abstract final class BriskaTheme {
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        height: 68,
-        indicatorColor: colors.primary.withValues(alpha: isDark ? .18 : .12),
+        height: 72,
+        indicatorColor: colors.primaryContainer,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? colors.primary
+                : colors.onSurfaceVariant,
+            size: 24,
+          ),
+        ),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
+            fontFamily: BriskaTypography.family,
             fontSize: 11,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w800
@@ -265,25 +317,40 @@ abstract final class BriskaTheme {
           ),
         ),
       ),
-      dividerColor: isDark ? Colors.white12 : BriskaColors.border,
+      dividerColor: colors.outlineVariant,
       visualDensity: VisualDensity.standard,
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: colors.primary,
+        selectionColor: colors.primary.withValues(alpha: .22),
+        selectionHandleColor: colors.primary,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.onPrimary : null,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.primary : null,
+        ),
+      ),
     );
   }
 
   static OutlineInputBorder _inputBorder(
-    bool isDark, {
+    ColorScheme colors, {
     bool focused = false,
     bool error = false,
   }) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(BriskaRadii.lg),
+      borderRadius: BorderRadius.circular(BriskaRadii.md),
       borderSide: BorderSide(
         color: error
-            ? BriskaColors.danger
+            ? colors.error
             : focused
-            ? BriskaColors.primary
-            : (isDark ? Colors.white24 : BriskaColors.border),
-        width: focused ? 1.5 : 1,
+            ? colors.primary
+            : colors.outlineVariant,
+        width: focused ? 2 : 1,
       ),
     );
   }

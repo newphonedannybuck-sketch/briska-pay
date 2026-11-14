@@ -8,9 +8,9 @@ abstract final class BriskaSpacing {
   static const xxl = 40.0;
   static const xxxl = 48.0;
 
-  static const pageHorizontal = 24.0;
+  static const pageHorizontal = 20.0;
   static const pageBottom = 32.0;
-  static const cardPadding = 24.0;
+  static const cardPadding = 20.0;
   static const sectionGap = 24.0;
   static const controlGap = 12.0;
   static const fieldGap = 16.0;

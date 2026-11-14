@@ -7,7 +7,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../design_system/briska_icons.dart';
-import '../../design_system/briska_theme.dart';
 import '../ads/ads_configuration.dart';
 import '../ads/ads_consent_coordinator.dart';
 import '../ads/ads_service.dart';
@@ -1000,11 +999,6 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
               children: screens,
             ),
           ),
-          if (_homeBannerEligible)
-            BriskaBannerAd(
-              key: const ValueKey('main-shell-banner'),
-              adsService: _adsService,
-            ),
         ],
       ),
       floatingActionButton: _index == 0
@@ -1016,69 +1010,81 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: BriskaShadows.card(
-              Theme.of(context).brightness == Brightness.dark,
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: _selectTab,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined, size: BriskaIcons.size),
-                  selectedIcon: Icon(
-                    Icons.home_rounded,
-                    size: BriskaIcons.size,
-                  ),
-                  label: 'Home',
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_homeBannerEligible)
+                BriskaBannerAd(
+                  key: const ValueKey('main-shell-banner'),
+                  adsService: _adsService,
                 ),
-                NavigationDestination(
-                  icon: Icon(
-                    Icons.calendar_view_day_outlined,
-                    size: BriskaIcons.size,
+              NavigationBar(
+                selectedIndex: _index,
+                onDestinationSelected: _selectTab,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined, size: BriskaIcons.size),
+                    selectedIcon: Icon(
+                      Icons.home_rounded,
+                      size: BriskaIcons.size,
+                    ),
+                    label: 'Home',
                   ),
-                  selectedIcon: Icon(
-                    Icons.calendar_view_day_rounded,
-                    size: BriskaIcons.size,
+                  NavigationDestination(
+                    icon: Icon(
+                      Icons.calendar_view_day_outlined,
+                      size: BriskaIcons.size,
+                    ),
+                    selectedIcon: Icon(
+                      Icons.calendar_view_day_rounded,
+                      size: BriskaIcons.size,
+                    ),
+                    label: 'Entries',
                   ),
-                  label: 'Entries',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.bar_chart_outlined, size: BriskaIcons.size),
-                  selectedIcon: Icon(
-                    Icons.bar_chart_rounded,
-                    size: BriskaIcons.size,
+                  NavigationDestination(
+                    icon: Icon(
+                      Icons.bar_chart_outlined,
+                      size: BriskaIcons.size,
+                    ),
+                    selectedIcon: Icon(
+                      Icons.bar_chart_rounded,
+                      size: BriskaIcons.size,
+                    ),
+                    label: 'Reports',
                   ),
-                  label: 'Reports',
-                ),
-                NavigationDestination(
-                  icon: Icon(
-                    Icons.file_download_outlined,
-                    size: BriskaIcons.size,
+                  NavigationDestination(
+                    icon: Icon(
+                      Icons.file_download_outlined,
+                      size: BriskaIcons.size,
+                    ),
+                    selectedIcon: Icon(
+                      Icons.file_download_rounded,
+                      size: BriskaIcons.size,
+                    ),
+                    label: 'Export',
                   ),
-                  selectedIcon: Icon(
-                    Icons.file_download_rounded,
-                    size: BriskaIcons.size,
+                  NavigationDestination(
+                    icon: Icon(Icons.settings_outlined, size: BriskaIcons.size),
+                    selectedIcon: Icon(
+                      Icons.settings_rounded,
+                      size: BriskaIcons.size,
+                    ),
+                    label: 'Settings',
                   ),
-                  label: 'Export',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined, size: BriskaIcons.size),
-                  selectedIcon: Icon(
-                    Icons.settings_rounded,
-                    size: BriskaIcons.size,
-                  ),
-                  label: 'Settings',
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
