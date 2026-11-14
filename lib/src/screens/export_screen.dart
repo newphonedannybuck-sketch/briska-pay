@@ -577,7 +577,7 @@ class _ExportScreenState extends State<ExportScreen> {
 
   Future<void> _openExportLibrary(BuildContext context) async {
     await Navigator.of(context).push(
-      _BriskaPageRoute(
+      BriskaPageRoute(
         child: ValueListenableBuilder<List<ExportedFileRecord>>(
           valueListenable: _libraryRecords,
           builder: (context, records, _) => ExportScreen(

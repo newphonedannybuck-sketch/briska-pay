@@ -1,3 +1,11 @@
+import 'app/briska_page_route.dart';
+import 'screens/app_lock_screen.dart';
+import 'screens/app_lock_initialization_error_screen.dart';
+import 'screens/startup_initialization_screen.dart';
+import 'screens/startup_recovery_screen.dart';
+import 'screens/about_screen.dart';
+import 'screens/beta_checklist_screen.dart';
+import 'screens/support_screen.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -5,7 +13,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -27,7 +34,6 @@ import 'pdf_export_service.dart';
 import 'pay_schedule.dart';
 import 'release_info.dart';
 import 'site_name_suggestions.dart';
-import 'support_service.dart';
 import 'work_calculator.dart';
 import 'premium_home_screen.dart';
 import '../design_system/briska_colors.dart';
@@ -43,18 +49,18 @@ import 'widgets/shared_ui.dart';
 import 'widgets/form_controls.dart';
 import 'widgets/report_widgets.dart';
 
+export 'screens/legal_text_screen.dart';
+export 'screens/support_screen.dart';
+export 'screens/beta_checklist_screen.dart';
+export 'screens/about_screen.dart';
+export 'screens/startup_recovery_screen.dart';
+export 'screens/startup_initialization_screen.dart';
+export 'screens/app_lock_initialization_error_screen.dart';
+export 'screens/app_lock_screen.dart';
 export 'widgets/shared_ui.dart';
 export 'widgets/form_controls.dart';
 export 'widgets/report_widgets.dart';
 
-part 'screens/about_screen.dart';
-part 'screens/legal_text_screen.dart';
-part 'screens/support_screen.dart';
-part 'screens/beta_checklist_screen.dart';
-part 'screens/startup_recovery_screen.dart';
-part 'screens/startup_initialization_screen.dart';
-part 'screens/app_lock_initialization_error_screen.dart';
-part 'screens/app_lock_screen.dart';
 part 'screens/onboarding_screen.dart';
 part 'screens/professional_reports_screen.dart';
 part 'screens/entries_screen.dart';

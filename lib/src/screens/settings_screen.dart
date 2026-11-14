@@ -889,7 +889,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.of(
                       context,
-                    ).push(_BriskaPageRoute(child: const SupportScreen())),
+                    ).push(BriskaPageRoute(child: const SupportScreen())),
                   ),
                   const Divider(height: 1),
                   ListTile(
@@ -901,7 +901,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.of(
                       context,
-                    ).push(_BriskaPageRoute(child: const SupportScreen())),
+                    ).push(BriskaPageRoute(child: const SupportScreen())),
                   ),
                   const Divider(height: 1),
                   ListTile(
@@ -909,9 +909,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: const Text('View beta checklist'),
                     subtitle: const Text('Tester release checklist.'),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.of(context).push(
-                      _BriskaPageRoute(child: const BetaChecklistScreen()),
-                    ),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).push(BriskaPageRoute(child: const BetaChecklistScreen())),
                   ),
                 ],
               ),

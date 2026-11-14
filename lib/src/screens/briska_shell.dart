@@ -418,7 +418,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     if (_restoreRecoveryRequired) return;
     final generation = _entryDataGeneration;
     Navigator.of(context).push(
-      _BriskaPageRoute(
+      BriskaPageRoute(
         child: AddWorkDayScreen(
           preferences: _preferences,
           savedEntries: _entries,
@@ -1039,7 +1039,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
         onDisableLock: _disableLock,
         onShowAbout: () => Navigator.of(
           context,
-        ).push(_BriskaPageRoute(child: const AboutBriskaScreen())),
+        ).push(BriskaPageRoute(child: const AboutBriskaScreen())),
         onPreferencesChanged: (value) =>
             _savePreferences(value, exportGeneration),
         onThemeModeChanged: (mode) async {
@@ -1208,33 +1208,6 @@ class _RetainedTabsState extends State<_RetainedTabs> {
       ],
     );
   }
-}
-
-class _BriskaPageRoute<T> extends PageRouteBuilder<T> {
-  _BriskaPageRoute({required Widget child})
-    : super(
-        transitionDuration: BriskaDurations.emphasis,
-        reverseTransitionDuration: BriskaDurations.standard,
-        pageBuilder: (_, _, _) => child,
-        transitionsBuilder: (context, animation, _, child) {
-          if (MediaQuery.disableAnimationsOf(context)) return child;
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-          return FadeTransition(
-            opacity: curved,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, .018),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      );
 }
 
 class _PreviewLine extends StatelessWidget {

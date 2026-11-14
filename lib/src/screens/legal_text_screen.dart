@@ -1,4 +1,6 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../widgets/shared_ui.dart';
 
 class LegalTextScreen extends StatelessWidget {
   const LegalTextScreen({
@@ -32,4 +34,3 @@ class LegalTextScreen extends StatelessWidget {
     );
   }
 }
-

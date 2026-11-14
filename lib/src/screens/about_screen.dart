@@ -1,4 +1,13 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../design_system/briska_spacing.dart';
+import '../release_info.dart';
+import '../support_service.dart';
+import '../widgets/shared_ui.dart';
+import '../app/briska_page_route.dart';
+import 'legal_text_screen.dart';
+import 'support_screen.dart';
+import 'beta_checklist_screen.dart';
 
 class AboutBriskaScreen extends StatelessWidget {
   const AboutBriskaScreen({this.showTesterTools, super.key});
@@ -65,7 +74,7 @@ class AboutBriskaScreen extends StatelessWidget {
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy Policy',
                   onTap: () => Navigator.of(context).push(
-                    _BriskaPageRoute(
+                    BriskaPageRoute(
                       child: const LegalTextScreen(
                         title: 'Privacy Policy',
                         assetPath: 'assets/legal/privacy_policy.md',
@@ -77,7 +86,7 @@ class AboutBriskaScreen extends StatelessWidget {
                   icon: Icons.gavel_outlined,
                   title: 'Terms of Use',
                   onTap: () => Navigator.of(context).push(
-                    _BriskaPageRoute(
+                    BriskaPageRoute(
                       child: const LegalTextScreen(
                         title: 'Terms of Use',
                         assetPath: 'assets/legal/terms_disclaimer.md',
@@ -90,15 +99,15 @@ class AboutBriskaScreen extends StatelessWidget {
                   title: 'Support',
                   onTap: () => Navigator.of(
                     context,
-                  ).push(_BriskaPageRoute(child: const SupportScreen())),
+                  ).push(BriskaPageRoute(child: const SupportScreen())),
                 ),
                 if (showTesterTools ?? showBetaTools)
                   _AboutAction(
                     icon: Icons.fact_check_outlined,
                     title: 'Beta Checklist',
-                    onTap: () => Navigator.of(context).push(
-                      _BriskaPageRoute(child: const BetaChecklistScreen()),
-                    ),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).push(BriskaPageRoute(child: const BetaChecklistScreen())),
                   ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
@@ -175,4 +184,3 @@ class _AboutAction extends StatelessWidget {
     ),
   );
 }
-

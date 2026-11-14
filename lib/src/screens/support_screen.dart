@@ -1,4 +1,8 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../design_system/briska_spacing.dart';
+import '../support_service.dart';
+import '../widgets/shared_ui.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -84,4 +88,3 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 }
-

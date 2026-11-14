@@ -1,4 +1,6 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../widgets/shared_ui.dart';
 
 class StartupRecoveryScreen extends StatelessWidget {
   const StartupRecoveryScreen({

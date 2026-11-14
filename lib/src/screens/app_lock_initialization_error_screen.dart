@@ -1,4 +1,5 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../widgets/shared_ui.dart';
 
 class AppLockInitializationErrorScreen extends StatelessWidget {
   const AppLockInitializationErrorScreen({required this.onRetry, super.key});
@@ -56,4 +57,3 @@ class AppLockInitializationErrorScreen extends StatelessWidget {
     );
   }
 }
-

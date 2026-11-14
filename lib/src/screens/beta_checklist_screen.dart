@@ -1,4 +1,7 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../../design_system/briska_spacing.dart';
+import '../local_storage.dart';
+import '../widgets/shared_ui.dart';
 
 class BetaChecklistScreen extends StatefulWidget {
   const BetaChecklistScreen({super.key});
@@ -172,4 +175,3 @@ class _BetaChecklistScreenState extends State<BetaChecklistScreen> {
     );
   }
 }
-

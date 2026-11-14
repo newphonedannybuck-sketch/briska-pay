@@ -1,4 +1,6 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../app_lock_service.dart';
+import '../widgets/shared_ui.dart';
 
 class AppLockScreen extends StatefulWidget {
   const AppLockScreen({

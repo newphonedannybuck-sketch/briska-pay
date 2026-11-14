@@ -1,4 +1,5 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import '../widgets/shared_ui.dart';
 
 class StartupInitializationScreen extends StatelessWidget {
   const StartupInitializationScreen({super.key});
@@ -40,4 +41,3 @@ class StartupInitializationScreen extends StatelessWidget {
     );
   }
 }
-
