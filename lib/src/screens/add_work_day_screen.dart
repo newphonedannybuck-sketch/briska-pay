@@ -1,4 +1,15 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import '../../design_system/briska_colors.dart';
+import '../../design_system/briska_theme.dart';
+import '../models.dart';
+import '../work_calculator.dart';
+import '../site_name_suggestions.dart';
+import '../presentation_format.dart';
+import '../display_format.dart';
+import '../widgets/shared_ui.dart';
+import '../widgets/form_controls.dart';
 
 class AddWorkDayScreen extends StatefulWidget {
   const AddWorkDayScreen({

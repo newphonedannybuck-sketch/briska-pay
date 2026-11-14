@@ -1,6 +1,40 @@
-part of '../briska_app.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import '../../design_system/briska_icons.dart';
+import '../../design_system/briska_theme.dart';
+import '../ads/ads_configuration.dart';
+import '../ads/ads_consent_coordinator.dart';
+import '../ads/ads_service.dart';
+import '../ads/briska_banner_ad.dart';
+import '../app_lock_service.dart';
+import '../app_theme.dart';
+import '../backup_service.dart';
+import '../currency.dart';
+import '../local_storage.dart';
+import '../models.dart';
+import '../work_calculator.dart';
+import '../display_format.dart';
+import '../presentation_format.dart';
+import '../premium_home_screen.dart';
+import 'briska_page_route.dart';
+import 'theme_preferences.dart';
+import 'settings_operation.dart';
+import '../screens/app_lock_screen.dart';
+import '../screens/app_lock_initialization_error_screen.dart';
+import '../screens/startup_initialization_screen.dart';
+import '../screens/startup_recovery_screen.dart';
+import '../screens/about_screen.dart';
+import '../screens/entries_screen.dart';
+import '../screens/professional_reports_screen.dart';
+import '../screens/onboarding_screen.dart';
+import '../screens/add_work_day_screen.dart';
+import '../screens/settings_screen.dart';
+import '../screens/export_screen.dart';
 
-class _StaleSettingsOperation implements Exception {}
+enum AppLockInitializationState { loading, locked, unlocked, failed }
+
+enum AdvertisingConsentGateState { waiting, checking, complete }
 
 class BriskaShell extends StatefulWidget {
   const BriskaShell({
@@ -608,7 +642,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       if (!mounted ||
           _restoreRecoveryRequired ||
           generation != _entryDataGeneration) {
-        throw _StaleSettingsOperation();
+        throw StaleSettingsOperation();
       }
       if (themeMode != null) {
         settings = _preferences.copyWith(themeMode: themeMode);

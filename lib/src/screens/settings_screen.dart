@@ -1,4 +1,21 @@
-part of '../briska_app.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import '../../design_system/briska_spacing.dart';
+import '../app/briska_page_route.dart';
+import '../app/settings_operation.dart';
+import '../app/theme_preferences.dart';
+import '../models.dart';
+import '../app_lock_service.dart';
+import '../currency.dart';
+import '../pay_schedule.dart';
+import '../release_info.dart';
+import '../presentation_format.dart';
+import '../display_format.dart';
+import '../widgets/shared_ui.dart';
+import '../widgets/form_controls.dart';
+import 'beta_checklist_screen.dart';
+import 'support_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -157,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
       if (successMessage != null) _showSettingsFeedback(successMessage);
       return true;
-    } on _StaleSettingsOperation {
+    } on StaleSettingsOperation {
       return false;
     } catch (error, stackTrace) {
       if (kDebugMode) {
@@ -620,7 +637,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (mounted && draftRevision == _draftRevision) {
                           _draftDirty = wasDirty;
                         }
-                      } on _StaleSettingsOperation {
+                      } on StaleSettingsOperation {
                         return;
                       } catch (error, stackTrace) {
                         if (kDebugMode) {

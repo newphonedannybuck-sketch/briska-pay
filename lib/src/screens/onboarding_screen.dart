@@ -1,4 +1,14 @@
-part of '../briska_app.dart';
+import '../pay_schedule.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
+import '../../design_system/briska_spacing.dart';
+import '../../design_system/briska_theme.dart';
+import '../models.dart';
+import '../currency.dart';
+import '../presentation_format.dart';
+import '../display_format.dart';
+import '../widgets/shared_ui.dart';
+import '../widgets/form_controls.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({
