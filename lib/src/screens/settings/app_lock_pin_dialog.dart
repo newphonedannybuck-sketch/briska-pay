@@ -60,14 +60,17 @@ Future<bool> showAppLockPinDialog(
           }
         }
 
-        Widget field(String label, ValueChanged<String> changed) => TextField(
-          enabled: !saving,
-          obscureText: true,
-          enableSuggestions: false,
-          autocorrect: false,
-          keyboardType: TextInputType.number,
-          onChanged: changed,
-          decoration: InputDecoration(labelText: label),
+        Widget field(String label, ValueChanged<String> changed) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: TextField(
+            enabled: !saving,
+            obscureText: true,
+            enableSuggestions: false,
+            autocorrect: false,
+            keyboardType: TextInputType.number,
+            onChanged: changed,
+            decoration: InputDecoration(labelText: label),
+          ),
         );
         return PopScope(
           canPop: !saving,

@@ -213,7 +213,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
                       children: [
                         const Text(
                           'All saved work',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                         Text(
                           '${filtered.length} '

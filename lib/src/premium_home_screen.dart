@@ -340,6 +340,32 @@ class _EarningsHero extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 360;
+        final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        final periodTitle = Text(
+          title,
+          style: TextStyle(
+            color: const Color(0xFFD5EADF),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+          ),
+        );
+        final periodBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .14),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '${formatCompactDate(periodStart)} – ${formatCompactDate(periodEnd)}',
+
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
         return Container(
           decoration: BoxDecoration(
             color: BriskaColors.hero,
@@ -349,44 +375,23 @@ class _EarningsHero extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: const Color(0xFFD5EADF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .14),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${formatCompactDate(periodStart)} – ${formatCompactDate(periodEnd)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              if (largeText)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    periodTitle,
+                    const SizedBox(height: 8),
+                    periodBadge,
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(child: periodTitle),
+                    const SizedBox(width: 8),
+                    Flexible(child: periodBadge),
+                  ],
+                ),
               const SizedBox(height: 16),
               const Spacer(),
               Text(
@@ -1051,7 +1056,7 @@ class _MoneyRow extends StatelessWidget {
           style: TextStyle(
             color: prominent ? Theme.of(context).colorScheme.primary : null,
             fontSize: prominent ? 18 : null,
-            fontWeight: strong || prominent ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: strong || prominent ? FontWeight.w700 : FontWeight.w600,
           ),
         ),
       ],

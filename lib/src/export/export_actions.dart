@@ -5,7 +5,6 @@ import 'package:open_filex/open_filex.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models.dart';
-import '../../design_system/briska_colors.dart';
 import '../export_formats.dart';
 import 'export_feedback.dart';
 import 'export_action_overrides.dart';
@@ -296,6 +295,7 @@ class ExportActions {
     final result = await showDialog<_DeleteChoice>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         icon: const Icon(Icons.delete_outline_rounded),
         title: const Text('Delete export?'),
         content: const Text('Choose what you want to delete.'),
@@ -307,7 +307,9 @@ class ExportActions {
           ),
           if (record.isAvailable)
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: BriskaColors.danger),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(dialogContext).colorScheme.error,
+              ),
               onPressed: () =>
                   Navigator.pop(dialogContext, _DeleteChoice.fileToo),
               child: const Text('Delete file and remove from library'),
@@ -325,6 +327,7 @@ class ExportActions {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
+          scrollable: true,
           icon: Icon(
             Icons.delete_forever_outlined,
             color: Theme.of(dialogContext).colorScheme.error,
@@ -345,8 +348,8 @@ class ExportActions {
               label: 'Delete export file from device',
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: BriskaColors.danger,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
                 ),
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('Delete file'),
@@ -426,6 +429,7 @@ class _RenameExportDialogState extends State<_RenameExportDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
     title: const Text('Rename export'),
     content: TextField(
       controller: _controller,

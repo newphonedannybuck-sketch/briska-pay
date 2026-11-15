@@ -19,7 +19,7 @@ class DetailText extends StatelessWidget {
             text: value,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

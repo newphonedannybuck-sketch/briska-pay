@@ -328,7 +328,7 @@ class _CalendarMetric extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -425,7 +425,7 @@ class _CalendarEmptyDaySummary extends StatelessWidget {
             children: [
               Text(
                 dateLabel,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
               Text(
@@ -503,7 +503,7 @@ class _CalendarEntrySummary extends StatelessWidget {
                     entryTitle(entry),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   Text(
                     entry.entryType == 'WorkDay'
@@ -519,7 +519,7 @@ class _CalendarEntrySummary extends StatelessWidget {
             ),
             Text(
               formatMoney(entry.totalPay),
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(width: 4),
             Icon(
@@ -626,7 +626,7 @@ class _CalendarDayTile extends StatelessWidget {
                               ? colorScheme.primary
                               : colorScheme.onSurface,
                           fontSize: compact ? 10.5 : 11.5,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),

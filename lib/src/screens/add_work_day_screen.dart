@@ -125,6 +125,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       final discard = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
+          scrollable: true,
           title: const Text('Discard unsaved changes?'),
           content: const Text('Your changes to this day have not been saved.'),
           actions: [
@@ -365,6 +366,7 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
       final choice = await showDialog<_DuplicateChoice>(
         context: context,
         builder: (dialogContext) => AlertDialog(
+          scrollable: true,
           title: const Text('Entry already exists'),
           content: Text(
             'There is already ${duplicate.length == 1 ? 'an entry' : '${duplicate.length} entries'} for this date.',
@@ -788,15 +790,20 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 96),
+            const SizedBox(height: 24),
           ],
         ),
       ),
-      bottomNavigationBar: EntrySaveBar(
-        calculation: _calculation,
-        keyboardOpen: keyboardOpen,
-        onSave: _isSaving ? null : _save,
-        label: _editingEntryId == null ? 'Save Entry' : 'Update Entry',
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: EntrySaveBar(
+          calculation: _calculation,
+          keyboardOpen: keyboardOpen,
+          onSave: _isSaving ? null : _save,
+          label: _editingEntryId == null ? 'Save Entry' : 'Update Entry',
+        ),
       ),
     );
     return PopScope<void>(

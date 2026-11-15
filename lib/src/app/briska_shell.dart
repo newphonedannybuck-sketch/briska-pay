@@ -12,7 +12,6 @@ import '../ads/ads_consent_coordinator.dart';
 import '../ads/ads_service.dart';
 import '../ads/briska_banner_ad.dart';
 import '../app_lock_service.dart';
-import '../../design_system/briska_colors.dart';
 import '../backup_service.dart';
 import '../currency.dart';
 import '../local_storage.dart';
@@ -343,6 +342,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: const Text('Reset local Briska Pay data?'),
         content: const Text(
           'This removes saved entries, settings and export records from this installation. Create or restore a backup if you need to keep them.',
@@ -464,6 +464,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
             : 'Work day';
         final dateLabel = formatWeekdayDate(entry.date);
         return AlertDialog(
+          scrollable: true,
           icon: Icon(
             Icons.delete_outline_rounded,
             color: Theme.of(dialogContext).colorScheme.error,
@@ -484,8 +485,8 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
               label: 'Delete day',
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: BriskaColors.danger,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
                 ),
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('Delete'),
@@ -689,6 +690,7 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
+          scrollable: true,
           title: const Text('Restore Briska Pay backup?'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1001,15 +1003,6 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           ),
         ],
       ),
-      floatingActionButton: _index == 0
-          ? FloatingActionButton.extended(
-              onPressed: _showAddDay,
-              tooltip: 'Add Day',
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Day'),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
@@ -1024,6 +1017,20 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_index == 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FloatingActionButton.extended(
+                      onPressed: _showAddDay,
+                      tooltip: 'Add Day',
+                      elevation: 0,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add Day'),
+                    ),
+                  ),
+                ),
               if (_homeBannerEligible)
                 BriskaBannerAd(
                   key: const ValueKey('main-shell-banner'),

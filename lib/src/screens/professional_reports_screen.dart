@@ -207,7 +207,7 @@ class _ReportsSummaryPanel extends StatelessWidget {
             style: TextStyle(
               color: Colors.white.withValues(alpha: .72),
               fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
             ),
           ),
@@ -280,15 +280,13 @@ class _ReportsHeroMetric extends StatelessWidget {
               style: TextStyle(
                 color: onPrimary,
                 fontSize: 16,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: onPrimary.withValues(alpha: .75),
               fontSize: 10,
@@ -374,7 +372,7 @@ class _ReportBreakdownRow extends StatelessWidget {
             ),
             Text(
               formatMoney(value),
-              style: const TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ],
         ),

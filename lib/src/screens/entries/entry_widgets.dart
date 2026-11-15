@@ -277,7 +277,7 @@ class CalculationLine extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontSize: emphasize ? 17 : 14,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

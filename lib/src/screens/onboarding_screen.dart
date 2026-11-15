@@ -99,9 +99,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            const BriskaLogo(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
+            const BriskaLogo(size: 56),
+            const SizedBox(height: 16),
             Text(
               'Welcome to Briska Pay',
               style: Theme.of(context).textTheme.headlineLarge,

@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../design_system/briska_colors.dart';
 import '../src/models.dart';
 import '../src/app/briska_shell.dart';
 import '../design_system/briska_theme.dart';
@@ -80,50 +79,62 @@ class _LoadingScreenState extends State<LoadingScreen>
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final theme = Theme.of(context);
+    final overlays = theme.brightness == Brightness.dark
+        ? SystemUiOverlayStyle.light
+        : SystemUiOverlayStyle.dark;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
+      value: overlays.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: BriskaColors.background,
+        systemNavigationBarColor: theme.scaffoldBackgroundColor,
       ),
       child: Scaffold(
-        backgroundColor: BriskaColors.background,
-        body: CustomPaint(
-          painter: const _LoadingBackgroundPainter(),
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                final markWidth = (width * .52).clamp(190.0, 290.0);
-                return Center(
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final markWidth = (constraints.maxWidth * .32).clamp(96.0, 160.0);
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 32,
+                    ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Spacer(flex: 42),
                         FadeTransition(
                           opacity: reduceMotion
                               ? const AlwaysStoppedAnimation<double>(1)
                               : _logoOpacity,
                           child: _BriskaMark(width: markWidth),
                         ),
-                        const SizedBox(height: 18),
-                        const _Wordmark(),
                         const SizedBox(height: 24),
-                        const _DividerRule(),
-                        const SizedBox(height: 30),
-                        const _Tagline(),
-                        const Spacer(flex: 18),
+                        Text(
+                          'Briska Pay',
+                          style: theme.textTheme.headlineLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Work. Track. Get Paid.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
                         _LoadingDots(
                           animation: _dotController,
                           reduceMotion: reduceMotion,
                         ),
-                        const Spacer(flex: 34),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -145,92 +156,6 @@ class _BriskaMark extends StatelessWidget {
       child: Image.asset(
         'assets/branding/briska-bp-splash.png',
         fit: BoxFit.contain,
-      ),
-    ),
-  );
-}
-
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
-
-  @override
-  Widget build(BuildContext context) => FittedBox(
-    fit: BoxFit.scaleDown,
-    child: RichText(
-      text: const TextSpan(
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 58,
-          fontWeight: FontWeight.w900,
-          fontFamily: 'Poppins',
-          letterSpacing: 0,
-          height: 1,
-          shadows: [
-            Shadow(
-              color: Color(0x88000000),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        children: [
-          TextSpan(text: 'Bris'),
-          TextSpan(
-            text: 'ka',
-            style: TextStyle(color: BriskaColors.primary),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _DividerRule extends StatelessWidget {
-  const _DividerRule();
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(width: 132, height: 2, color: BriskaColors.primary),
-      const SizedBox(width: 22),
-      Container(
-        width: 12,
-        height: 12,
-        decoration: const BoxDecoration(
-          color: BriskaColors.primary,
-          shape: BoxShape.circle,
-        ),
-      ),
-      const SizedBox(width: 22),
-      Container(width: 132, height: 2, color: BriskaColors.primary),
-    ],
-  );
-}
-
-class _Tagline extends StatelessWidget {
-  const _Tagline();
-
-  @override
-  Widget build(BuildContext context) => FittedBox(
-    fit: BoxFit.scaleDown,
-    child: Text.rich(
-      const TextSpan(
-        children: [
-          TextSpan(text: 'Work. Track. '),
-          TextSpan(
-            text: 'Get Paid.',
-            style: TextStyle(color: BriskaColors.primary),
-          ),
-        ],
-      ),
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        fontFamily: 'Poppins',
-        letterSpacing: 0,
       ),
     ),
   );
@@ -283,118 +208,12 @@ class _Dot extends StatelessWidget {
   Widget build(BuildContext context) => Transform.scale(
     scale: scale,
     child: Container(
-      width: 18,
-      height: 18,
+      width: 8,
+      height: 8,
       decoration: BoxDecoration(
-        color: BriskaColors.primary.withValues(alpha: opacity),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: opacity),
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: BriskaColors.primary.withValues(alpha: opacity * .35),
-            blurRadius: 18,
-          ),
-        ],
       ),
     ),
   );
-}
-
-class _LoadingBackgroundPainter extends CustomPainter {
-  const _LoadingBackgroundPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final basePaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [BriskaColors.background, BriskaColors.dark, Color(0xFF0D2A1E)],
-      ).createShader(rect);
-    canvas.drawRect(rect, basePaint);
-
-    _drawRibbon(
-      canvas,
-      size,
-      top: true,
-      color: BriskaColors.accent.withValues(alpha: .24),
-    );
-    _drawRibbon(
-      canvas,
-      size,
-      top: false,
-      color: BriskaColors.primary.withValues(alpha: .22),
-    );
-  }
-
-  void _drawRibbon(
-    Canvas canvas,
-    Size size, {
-    required bool top,
-    required Color color,
-  }) {
-    final path = Path();
-    if (top) {
-      path
-        ..moveTo(0, size.height * .35)
-        ..cubicTo(
-          size.width * .12,
-          size.height * .14,
-          size.width * .35,
-          size.height * .23,
-          size.width * .55,
-          -size.height * .05,
-        )
-        ..lineTo(size.width * .78, -size.height * .05)
-        ..cubicTo(
-          size.width * .52,
-          size.height * .2,
-          size.width * .56,
-          size.height * .18,
-          size.width * .2,
-          size.height * .3,
-        )
-        ..cubicTo(
-          size.width * .08,
-          size.height * .34,
-          size.width * .04,
-          size.height * .45,
-          0,
-          size.height * .5,
-        )
-        ..close();
-    } else {
-      path
-        ..moveTo(size.width * .28, size.height)
-        ..cubicTo(
-          size.width * .43,
-          size.height * .78,
-          size.width * .58,
-          size.height * .84,
-          size.width,
-          size.height * .64,
-        )
-        ..lineTo(size.width, size.height * .78)
-        ..cubicTo(
-          size.width * .76,
-          size.height * .93,
-          size.width * .58,
-          size.height * .88,
-          size.width * .49,
-          size.height,
-        )
-        ..close();
-    }
-    canvas.drawPath(path, Paint()..color = color);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.1
-        ..color = BriskaColors.primary.withValues(alpha: .36),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

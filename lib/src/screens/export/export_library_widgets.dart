@@ -101,7 +101,7 @@ class ExportedFileCard extends StatelessWidget {
                       record.currencyCode,
                     ).copyWith(symbol: record.currencySymbol),
                   ),
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -212,7 +212,7 @@ class _MissingFileBadge extends StatelessWidget {
       style: TextStyle(
         color: Theme.of(context).colorScheme.error,
         fontSize: 11,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w700,
       ),
     ),
   );

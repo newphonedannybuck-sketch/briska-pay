@@ -13,7 +13,7 @@ class StartupInitializationScreen extends StatelessWidget {
           child: Semantics(
             container: true,
             label: 'Briska Pay is starting',
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -24,7 +24,14 @@ class StartupInitializationScreen extends StatelessWidget {
                     'Briska Pay',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Work. Track. Get Paid.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   if (reduceMotion)
                     const Icon(Icons.lock_outline_rounded)
                   else

@@ -212,6 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: const Text('Change currency?'),
         content: const Text(
           'This changes how money is displayed throughout Briska Pay. It does not convert existing wage values using an exchange rate.',
@@ -687,6 +688,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final chooseNow = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: const Text('Choose pay period start'),
         content: const Text(
           'Weekly, fortnightly and four-weekly schedules need a known pay period start date before Briska Pay can calculate your periods accurately.',

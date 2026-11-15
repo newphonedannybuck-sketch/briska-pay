@@ -27,12 +27,12 @@ class AboutBriskaScreen extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Center(child: BriskaLogo(size: 80)),
-                const SizedBox(height: 18),
+                const Center(child: BriskaLogo(size: 64)),
+                const SizedBox(height: 16),
                 Center(
                   child: Text(
                     'Briska Pay',
-                    style: Theme.of(context).textTheme.headlineLarge,
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
                 const Center(child: Text('Work. Track. Get Paid.')),

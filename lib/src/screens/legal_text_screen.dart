@@ -21,11 +21,16 @@ class LegalTextScreen extends StatelessWidget {
           future: rootBundle.loadString(assetPath),
           builder: (context, snapshot) {
             final text = snapshot.data ?? 'Loading...';
-            return SelectableText(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                height: 1.55,
-                color: Theme.of(context).colorScheme.onSurface,
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: SelectableText(
+                  text,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    height: 1.7,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
               ),
             );
           },

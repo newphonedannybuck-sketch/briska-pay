@@ -47,9 +47,9 @@ class _SupportScreenState extends State<SupportScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Support',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                const PageHeading(
+                  title: 'Support',
+                  subtitle: 'Help and information for Briska Pay.',
                 ),
                 const SizedBox(height: 8),
                 const Text('Developer: Berkzerker'),
@@ -61,6 +61,9 @@ class _SupportScreenState extends State<SupportScreen> {
                     child: SelectableText(
                       diagnostics?.toSummary() ??
                           'Loading support information...',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(height: 1.7),
                     ),
                   ),
                 ),

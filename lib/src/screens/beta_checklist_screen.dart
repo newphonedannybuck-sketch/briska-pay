@@ -64,6 +64,7 @@ class _BetaChecklistScreenState extends State<BetaChecklistScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
+            scrollable: true,
             title: Text(title),
             content: Text(message),
             actions: [

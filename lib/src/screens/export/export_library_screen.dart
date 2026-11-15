@@ -81,6 +81,11 @@ class _ExportLibraryScreenState extends State<ExportLibraryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const PageHeading(
+            title: 'Saved reports',
+            subtitle: 'Open, share and manage your files.',
+          ),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
