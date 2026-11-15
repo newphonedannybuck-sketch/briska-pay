@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
-import '../design_system/briska_colors.dart';
 import '../design_system/briska_cards.dart';
 import '../design_system/briska_radius.dart';
 import '../design_system/briska_theme.dart';
@@ -57,78 +57,97 @@ class HomeScreen extends StatelessWidget {
         return byDate != 0 ? byDate : b.id.compareTo(a.id);
       });
 
-    return AppPage(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _DashboardHeader(
-            greeting: _greetingFor(now),
-            supportingText: entries.isEmpty
-                ? 'Add your first day to start tracking your pay.'
-                : 'Welcome back.',
-          ),
-          const SizedBox(height: 22),
-          _Entrance(
-            child: _PayPeriodPager(
-              entries: entries,
-              settings: settings,
-              today: today,
-            ),
-          ),
-          const SizedBox(height: 18),
-          _Entrance(
-            delay: const Duration(milliseconds: 70),
-            child: _NextPaydayCard(
-              payday: nextPayday,
-              today: today,
-              onConfigure: onConfigurePayday,
-            ),
-          ),
-          const SizedBox(height: 24),
-          const SectionHeading(title: 'Quick actions'),
-          const SizedBox(height: 14),
-          _Entrance(
-            delay: const Duration(milliseconds: 110),
-            child: _QuickActions(
-              onAddEntry: onAddEntry,
-              onOpenCalendar: onOpenCalendar,
-              onOpenReports: onOpenReports,
-              onOpenExport: onOpenExport,
-            ),
-          ),
-          const SizedBox(height: 24),
-          SectionHeading(
-            title: 'Recent activity',
-            action: 'View all',
-            onTap: onViewEntries,
-          ),
-          const SizedBox(height: 14),
-          if (recentEntries.isEmpty)
-            _EmptyActivity(onAddEntry: onAddEntry)
-          else
-            ...recentEntries
-                .take(5)
-                .toList()
-                .asMap()
-                .entries
-                .map(
-                  (item) => _Entrance(
-                    delay: Duration(milliseconds: 150 + item.key * 45),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ActivityCard(
-                        entry: item.value,
-                        settings: settings,
-                        onEdit: onEditEntry ?? (_) {},
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return Theme(
+      data: theme.copyWith(
+        colorScheme: theme.colorScheme.copyWith(
+          surface: dark ? const Color(0xFF232625) : Colors.white,
+          onSurface: dark ? const Color(0xFFF1F3F2) : const Color(0xFF202622),
+          onSurfaceVariant: dark
+              ? const Color(0xFFB6BDB9)
+              : const Color(0xFF616963),
+          outlineVariant: dark
+              ? const Color(0xFF363C38)
+              : const Color(0xFFE0E4E1),
+        ),
+      ),
+      child: ColoredBox(
+        color: dark ? const Color(0xFF171A18) : const Color(0xFFF7F8F7),
+        child: AppPage(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DashboardHeader(
+                greeting: _greetingFor(now),
+                supportingText: entries.isEmpty
+                    ? 'Add your first day to start tracking your pay.'
+                    : 'Welcome back.',
+              ),
+              const SizedBox(height: 22),
+              _Entrance(
+                child: _PayPeriodPager(
+                  entries: entries,
+                  settings: settings,
+                  today: today,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _Entrance(
+                delay: const Duration(milliseconds: 70),
+                child: _NextPaydayCard(
+                  payday: nextPayday,
+                  today: today,
+                  onConfigure: onConfigurePayday,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SectionHeading(
+                title: 'Recent activity',
+                action: 'View all',
+                onTap: onViewEntries,
+              ),
+              const SizedBox(height: 14),
+              if (recentEntries.isEmpty)
+                const _EmptyActivity()
+              else
+                ...recentEntries
+                    .take(5)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map(
+                      (item) => _Entrance(
+                        delay: Duration(milliseconds: 150 + item.key * 45),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _ActivityCard(
+                            entry: item.value,
+                            settings: settings,
+                            onEdit: onEditEntry ?? (_) {},
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+              const SizedBox(height: 20),
+              const SectionHeading(title: 'Quick actions'),
+              const SizedBox(height: 14),
+              _Entrance(
+                delay: const Duration(milliseconds: 110),
+                child: _QuickActions(
+                  onOpenCalendar: onOpenCalendar,
+                  onOpenReports: onOpenReports,
+                  onOpenExport: onOpenExport,
                 ),
-          const SizedBox(
-            key: ValueKey('home-final-bottom-clearance'),
-            height: 80,
+              ),
+              const SizedBox(height: 24),
+              const SizedBox(
+                key: ValueKey('home-final-bottom-clearance'),
+                height: 80,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -144,41 +163,76 @@ class _DashboardHeader extends StatelessWidget {
   final String supportingText;
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: Column(
+  Widget build(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(1) >= 1.5
+      ? Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(greeting, style: Theme.of(context).textTheme.headlineLarge),
+            Image.asset(
+              'assets/branding/briska-bp-in-app.png',
+              width: 36,
+              height: 36,
+              semanticLabel: 'Briska Pay',
+            ),
+            const SizedBox(height: 12),
+            Text(
+              greeting,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineLarge?.copyWith(fontSize: 22),
+            ),
             const SizedBox(height: 6),
             Text(
               supportingText,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 15,
-                fontWeight: FontWeight.w500,
               ),
             ),
           ],
-        ),
-      ),
-      const SizedBox(width: 16),
-      Semantics(
-        label: 'Briska Pay. Track your hours. Know your pay.',
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.asset(
-            'assets/branding/briska-bp-in-app.png',
-            width: 44,
-            height: 44,
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
-    ],
-  );
+        )
+      : Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    greeting,
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      fontSize: MediaQuery.textScalerOf(context).scale(1) >= 1.5
+                          ? 22
+                          : 28,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    supportingText,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Semantics(
+              label: 'Briska Pay. Track your hours. Know your pay.',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/branding/briska-bp-in-app.png',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ],
+        );
 }
 
 class _PayPeriodPager extends StatefulWidget {
@@ -200,6 +254,7 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
   late List<PayPeriodRange> _periods;
   late int _page;
   late final PageController _controller;
+  double _contentHeight = 290;
 
   @override
   void initState() {
@@ -251,12 +306,10 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
 
   @override
   Widget build(BuildContext context) {
-    final textScale = MediaQuery.textScalerOf(context).scale(10) / 10;
-    final pagerHeight = 328.0 + ((textScale - 1).clamp(0, 3) * 350);
     return Column(
       children: [
         SizedBox(
-          height: pagerHeight,
+          height: _contentHeight,
           child: PageView.builder(
             controller: _controller,
             itemCount: _periods.length,
@@ -266,16 +319,27 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
               final summary = WorkCalculator.summarize(
                 widget.entries.where((entry) => period.contains(entry.date)),
               );
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: _EarningsHero(
-                  title: index == _periods.length - 1
-                      ? 'CURRENT PAY PERIOD'
-                      : 'PREVIOUS PAY PERIOD',
-                  summary: summary,
-                  periodStart: period.start,
-                  periodEnd: period.end,
-                  today: widget.today,
+              return OverflowBox(
+                minHeight: 0,
+                maxHeight: double.infinity,
+                alignment: Alignment.topCenter,
+                child: _MeasureEarnings(
+                  onHeight: (height) {
+                    if (mounted &&
+                        index == _page &&
+                        (_contentHeight - height).abs() > .5) {
+                      setState(() => _contentHeight = height);
+                    }
+                  },
+                  child: _EarningsHero(
+                    title: index == _periods.length - 1
+                        ? 'CURRENT PAY PERIOD'
+                        : 'PREVIOUS PAY PERIOD',
+                    summary: summary,
+                    periodStart: period.start,
+                    periodEnd: period.end,
+                    today: widget.today,
+                  ),
                 ),
               );
             },
@@ -315,6 +379,31 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
       previous.customPeriodStartDay != next.customPeriodStartDay;
 }
 
+// Measure the natural page height so text and metrics can reflow at any width.
+class _MeasureEarnings extends SingleChildRenderObjectWidget {
+  const _MeasureEarnings({required this.onHeight, required super.child});
+  final ValueChanged<double> onHeight;
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _EarningsSize(onHeight);
+  @override
+  void updateRenderObject(BuildContext context, _EarningsSize renderObject) {
+    renderObject.onHeight = onHeight;
+    renderObject.markNeedsLayout();
+  }
+}
+
+class _EarningsSize extends RenderProxyBox {
+  _EarningsSize(this.onHeight);
+  ValueChanged<double> onHeight;
+  @override
+  void performLayout() {
+    super.performLayout();
+    final height = size.height;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onHeight(height));
+  }
+}
+
 class _EarningsHero extends StatelessWidget {
   const _EarningsHero({
     required this.summary,
@@ -337,153 +426,101 @@ class _EarningsHero extends StatelessWidget {
       periodEnd: periodEnd,
       today: today,
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360;
-        final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-        final periodTitle = Text(
-          title,
-          style: TextStyle(
-            color: const Color(0xFFD5EADF),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.1,
-          ),
-        );
-        final periodBadge = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .14),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '${formatCompactDate(periodStart)} – ${formatCompactDate(periodEnd)}',
-
-            style: const TextStyle(
-              color: Colors.white,
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.primary,
               fontSize: 11,
               fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
             ),
           ),
-        );
-        return Container(
-          decoration: BoxDecoration(
-            color: BriskaColors.hero,
-            borderRadius: BorderRadius.circular(BriskaRadii.xl),
+          const SizedBox(height: 4),
+          Text(
+            '${formatCompactDate(periodStart)} – ${formatCompactDate(periodEnd)}',
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
           ),
-          padding: EdgeInsets.all(compact ? 20 : 26),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 18),
+          Text(
+            'Estimated gross pay',
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              formatMoney(summary.totalExpectedPay),
+              maxLines: 1,
+              style: TextStyle(
+                color: colors.onSurface,
+                fontSize: 46,
+                height: 1.15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -1.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 28,
+            runSpacing: 12,
             children: [
-              if (largeText)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    periodTitle,
-                    const SizedBox(height: 8),
-                    periodBadge,
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(child: periodTitle),
-                    const SizedBox(width: 8),
-                    Flexible(child: periodBadge),
-                  ],
-                ),
-              const SizedBox(height: 16),
-              const Spacer(),
+              _HeroMetric(
+                key: const ValueKey('home-hours-metric'),
+                label: summary.totalHours == 1 ? 'Hour' : 'Hours',
+                value: formatHours(summary.totalHours),
+              ),
+              _HeroMetric(
+                key: const ValueKey('home-days-recorded-metric'),
+                label: summary.totalDays == 1
+                    ? 'Day recorded'
+                    : 'Days recorded',
+                value: summary.totalDays.toString(),
+              ),
+              _HeroMetric(
+                key: const ValueKey('home-uplift-metric'),
+                label: 'Uplift',
+                value: formatMoney(summary.totalJobUplift),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            children: [
               Text(
-                'Estimated gross pay',
+                'Time through pay period',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+              ),
+              Text(
+                periodProgress.displayText,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: .88),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 5),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  formatMoney(summary.totalExpectedPay),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: compact ? 40 : 48,
-                    height: 1.05,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.8,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 17),
-              const Spacer(),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _HeroMetric(
-                      key: const ValueKey('home-hours-metric'),
-                      label: summary.totalHours == 1 ? 'Hour' : 'Hours',
-                      value: formatHours(summary.totalHours),
-                    ),
-                    const SizedBox(width: 22),
-                    _HeroMetric(
-                      key: const ValueKey('home-days-recorded-metric'),
-                      label: summary.totalDays == 1
-                          ? 'Day recorded'
-                          : 'Days recorded',
-                      value: summary.totalDays.toString(),
-                    ),
-                    const SizedBox(width: 22),
-                    _HeroMetric(
-                      key: const ValueKey('home-uplift-metric'),
-                      label: 'Uplift',
-                      value: formatMoney(summary.totalJobUplift),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Spacer(),
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  const Text(
-                    'Time through pay period',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    periodProgress.displayText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: periodProgress.progress,
-                  minHeight: 6,
-                  color: Colors.white,
-                  backgroundColor: Colors.white.withValues(alpha: .2),
+                  color: colors.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+            value: periodProgress.progress,
+            minHeight: 2,
+            color: colors.primary,
+            backgroundColor: colors.outlineVariant,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -550,23 +587,23 @@ class _HeroMetric extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 6,
-    crossAxisAlignment: WrapCrossAlignment.center,
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
         value,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
         ),
       ),
       Text(
         label,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: .68),
-          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 11,
         ),
       ),
     ],
@@ -613,67 +650,54 @@ class _NextPaydayCard extends StatelessWidget {
     }
     final days = payday!.difference(today).inDays;
     final countdown = paydayCountdownLabel(days);
-    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    final paydayDetails = Row(
-      children: [
-        const _DashboardIcon(icon: Icons.account_balance_wallet_outlined),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
+    return Material(
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onConfigure,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Next payday',
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              Icon(Icons.event_outlined, color: colors.primary, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      'Next payday',
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      formatWeekdayDate(payday!),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      countdown,
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 5),
-              Text(
-                formatWeekdayDate(payday!),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              const Icon(Icons.chevron_right_rounded, size: 20),
             ],
           ),
         ),
-      ],
-    );
-    final countdownChip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        countdown,
-        style: TextStyle(
-          color: colors.primary,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-    return BriskaCard(
-      child: largeText
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                paydayDetails,
-                const SizedBox(height: 12),
-                Align(alignment: Alignment.centerRight, child: countdownChip),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(child: paydayDetails),
-                const SizedBox(width: 10),
-                countdownChip,
-              ],
-            ),
     );
   }
 }
@@ -687,13 +711,11 @@ String paydayCountdownLabel(int days) => days == 0
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
-    required this.onAddEntry,
     required this.onOpenCalendar,
     required this.onOpenReports,
     required this.onOpenExport,
   });
 
-  final VoidCallback onAddEntry;
   final VoidCallback onOpenCalendar;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenExport;
@@ -702,7 +724,6 @@ class _QuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final useGrid = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     final actions = [
-      (Icons.add_rounded, 'Add Day', onAddEntry, true),
       (Icons.calendar_month_outlined, 'Calendar', onOpenCalendar, false),
       (Icons.insights_outlined, 'Reports', onOpenReports, false),
       (Icons.ios_share_outlined, 'Export', onOpenExport, false),
@@ -770,7 +791,7 @@ class _QuickActionButton extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final accessibleText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Material(
-      color: primary ? colors.primary : colors.primary.withValues(alpha: .075),
+      color: primary ? colors.primary : colors.surface,
       borderRadius: BorderRadius.circular(BriskaRadii.lg),
       child: InkWell(
         onTap: onTap,
@@ -1116,87 +1137,73 @@ class _ActivityCard extends StatelessWidget {
             if (context.mounted) onEdit(entry);
           }
         },
-        child: BriskaCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: .08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(
-                    item.date.day.toString(),
-                    style: TextStyle(
-                      color: colors.primary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 340 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+              final details = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _entryTitle(item),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_weekday(item.date)}, ${item.date.day} ${_shortMonth(item.date)}  •  ${formatHoursLabel(item.totalHours)}',
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              );
+              final amount = FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatMoney(item.totalPay),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+              );
+              if (stacked) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _entryTitle(item),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                  children: [details, const SizedBox(height: 8), amount],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: details),
+                  const SizedBox(width: 16),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * .4,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${_weekday(item.date)}, ${item.date.day} '
-                      '${_shortMonth(item.date)}  •  '
-                      '${formatHoursLabel(item.totalHours)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 104,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      formatMoney(item.totalPay),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Estimated gross pay',
-                      maxLines: 2,
-                      textAlign: TextAlign.end,
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: colors.onSurfaceVariant,
-              ),
-            ],
+                    child: amount,
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -1205,17 +1212,21 @@ class _ActivityCard extends StatelessWidget {
 }
 
 class _EmptyActivity extends StatelessWidget {
-  const _EmptyActivity({required this.onAddEntry});
-
-  final VoidCallback onAddEntry;
-
+  const _EmptyActivity();
   @override
-  Widget build(BuildContext context) => BriskaEmptyState(
-    icon: Icons.work_outline_rounded,
-    title: 'Your work starts here',
-    message: 'Add your first day to see your earnings and activity.',
-    actionLabel: 'Add Day',
-    onAction: onAddEntry,
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Your work starts here',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        SizedBox(height: 6),
+        Text('Add your first day to see your earnings and activity.'),
+      ],
+    ),
   );
 }
 

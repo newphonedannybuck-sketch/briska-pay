@@ -1,6 +1,7 @@
 // Render actual Flutter screens without accessing installed app data.
 // Run: flutter test tool/ui_preview_test.dart --reporter expanded
-// Images: build/ui-preview/ (ignored by Git).
+// Home-only review: flutter test tool/ui_preview_test.dart --dart-define=HOME_ONLY=true
+// Images and generated Home index: build/ui-preview/ (ignored by Git).
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -20,6 +21,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  const homeOnly = bool.fromEnvironment('HOME_ONLY');
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     final fonts = FontLoader('Poppins');
@@ -116,154 +118,156 @@ void main() {
       );
       await app();
       await capture('home');
-      for (final tab in ['Entries', 'Reports', 'Export', 'Settings']) {
-        await tester.tap(find.text(tab).last);
-        await capture(tab.toLowerCase());
-        if (tab == 'Entries') {
-          await tester.ensureVisible(
-            find.byKey(const ValueKey('entry-card-preview-0')),
-          );
-          await capture('entry-list');
+      if (!homeOnly) {
+        for (final tab in ['Entries', 'Reports', 'Export', 'Settings']) {
+          await tester.tap(find.text(tab).last);
+          await capture(tab.toLowerCase());
+          if (tab == 'Entries') {
+            await tester.ensureVisible(
+              find.byKey(const ValueKey('entry-card-preview-0')),
+            );
+            await capture('entry-list');
+          }
+          if (tab == 'Export') {
+            await tester.ensureVisible(find.text('More options'));
+            await tester.tap(find.text('More options'));
+            await tester.pumpAndSettle();
+            await tester.ensureVisible(find.text('Export report'));
+            await capture('export-options');
+          }
+          if (tab == 'Settings') {
+            await tester.ensureVisible(find.text('Security'));
+            await capture('settings-security');
+          }
         }
-        if (tab == 'Export') {
-          await tester.ensureVisible(find.text('More options'));
-          await tester.tap(find.text('More options'));
-          await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('Export report'));
-          await capture('export-options');
-        }
-        if (tab == 'Settings') {
-          await tester.ensureVisible(find.text('Security'));
-          await capture('settings-security');
-        }
-      }
-      await tester.tap(find.text('Home').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FloatingActionButton, 'Add Day'));
-      await capture('add-day');
-      await tester.tap(find.text('Holiday'));
-      await capture('holiday');
-      final hourField = find.byKey(const ValueKey('holiday-hours-field'));
-      await tester.ensureVisible(hourField);
-      await tester.tap(hourField);
-      await tester.pumpAndSettle();
-      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
-      await capture('holiday-focused');
-      tester.view.resetViewInsets();
+        await tester.tap(find.text('Home').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FloatingActionButton, 'Add Day'));
+        await capture('add-day');
+        await tester.tap(find.text('Holiday'));
+        await capture('holiday');
+        final hourField = find.byKey(const ValueKey('holiday-hours-field'));
+        await tester.ensureVisible(hourField);
+        await tester.tap(hourField);
+        await tester.pumpAndSettle();
+        tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+        await capture('holiday-focused');
+        tester.view.resetViewInsets();
 
-      Future<void> standalone(String name, Widget child) async {
-        await tester.pumpWidget(
-          RepaintBoundary(
-            key: boundaryKey,
-            child: MaterialApp(
-              key: UniqueKey(),
-              theme: mode == 'light' ? BriskaTheme.light : BriskaTheme.dark,
-              debugShowCheckedModeBanner: false,
-              home: child,
+        Future<void> standalone(String name, Widget child) async {
+          await tester.pumpWidget(
+            RepaintBoundary(
+              key: boundaryKey,
+              child: MaterialApp(
+                key: UniqueKey(),
+                theme: mode == 'light' ? BriskaTheme.light : BriskaTheme.dark,
+                debugShowCheckedModeBanner: false,
+                home: child,
+              ),
+            ),
+          );
+          await capture(name);
+        }
+
+        await standalone(
+          'onboarding',
+          OnboardingScreen(initialSettings: settings, onComplete: (_) async {}),
+        );
+        await standalone(
+          'lock',
+          AppLockScreen(
+            config: const AppLockConfig(enabled: true, hasPin: true),
+            onUnlocked: () {},
+            verifyPin: (_) async => false,
+          ),
+        );
+        await standalone(
+          'recovery',
+          StartupRecoveryScreen(
+            error: 'Preview',
+            dataIsCorrupt: true,
+            onRetry: () async {},
+            onRestoreBackup: () async {},
+            onResetLocalData: () async {},
+          ),
+        );
+        await standalone(
+          'about',
+          const AboutBriskaScreen(showTesterTools: false),
+        );
+        await standalone(
+          'legal',
+          const LegalTextScreen(
+            title: 'Privacy Policy',
+            assetPath: 'assets/legal/privacy_policy.md',
+          ),
+        );
+        await standalone('support', const SupportScreen());
+        await standalone(
+          'security-error',
+          AppLockInitializationErrorScreen(onRetry: () async {}),
+        );
+        await standalone(
+          'startup',
+          Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: const StartupInitializationScreen(),
             ),
           ),
         );
-        await capture(name);
-      }
-
-      await standalone(
-        'onboarding',
-        OnboardingScreen(initialSettings: settings, onComplete: (_) async {}),
-      );
-      await standalone(
-        'lock',
-        AppLockScreen(
-          config: const AppLockConfig(enabled: true, hasPin: true),
-          onUnlocked: () {},
-          verifyPin: (_) async => false,
-        ),
-      );
-      await standalone(
-        'recovery',
-        StartupRecoveryScreen(
-          error: 'Preview',
-          dataIsCorrupt: true,
-          onRetry: () async {},
-          onRestoreBackup: () async {},
-          onResetLocalData: () async {},
-        ),
-      );
-      await standalone(
-        'about',
-        const AboutBriskaScreen(showTesterTools: false),
-      );
-      await standalone(
-        'legal',
-        const LegalTextScreen(
-          title: 'Privacy Policy',
-          assetPath: 'assets/legal/privacy_policy.md',
-        ),
-      );
-      await standalone('support', const SupportScreen());
-      await standalone(
-        'security-error',
-        AppLockInitializationErrorScreen(onRetry: () async {}),
-      );
-      await standalone(
-        'startup',
-        Builder(
-          builder: (context) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(disableAnimations: true),
-            child: const StartupInitializationScreen(),
+        await standalone(
+          'export-library',
+          ExportLibraryScreen(
+            records: [
+              ExportedFileRecord(
+                id: 'preview-file',
+                fileName: 'Alex_Morgan_30_November_2026.pdf',
+                fileType: 'PDF Timesheet',
+                filePath: '',
+                exportedAt: now,
+                periodLabel: 'November 2026',
+                workDays: 6,
+                totalHours: 51,
+                totalPay: 1399,
+                fileSize: 24576,
+              ),
+            ],
+            onUpdate: (_) async => true,
+            onDelete: (_) async => true,
           ),
-        ),
-      );
-      await standalone(
-        'export-library',
-        ExportLibraryScreen(
-          records: [
-            ExportedFileRecord(
-              id: 'preview-file',
-              fileName: 'Alex_Morgan_30_November_2026.pdf',
-              fileType: 'PDF Timesheet',
-              filePath: '',
-              exportedAt: now,
-              periodLabel: 'November 2026',
-              workDays: 6,
-              totalHours: 51,
-              totalPay: 1399,
-              fileSize: 24576,
-            ),
-          ],
-          onUpdate: (_) async => true,
-          onDelete: (_) async => true,
-        ),
-      );
-      await tester.ensureVisible(find.text('Rename'));
-      await tester.tap(find.text('Rename'));
-      await capture('rename-dialog');
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Delete'));
-      await tester.tap(find.text('Delete'));
-      await capture('delete-dialog');
+        );
+        await tester.ensureVisible(find.text('Rename'));
+        await tester.tap(find.text('Rename'));
+        await capture('rename-dialog');
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Delete'));
+        await tester.tap(find.text('Delete'));
+        await capture('delete-dialog');
 
-      await standalone(
-        'pin-launcher',
-        Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: FilledButton(
-                onPressed: () => showAppLockPinDialog(
-                  context,
-                  disabling: false,
-                  hasPin: () => true,
-                  onDisableLock: (_) async {},
-                  onSetLockPin: (_, _) async {},
+        await standalone(
+          'pin-launcher',
+          Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => showAppLockPinDialog(
+                    context,
+                    disabling: false,
+                    hasPin: () => true,
+                    onDisableLock: (_) async {},
+                    onSetLockPin: (_, _) async {},
+                  ),
+                  child: const Text('Open PIN'),
                 ),
-                child: const Text('Open PIN'),
               ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.text('Open PIN'));
-      await capture('pin-dialog');
+        );
+        await tester.tap(find.text('Open PIN'));
+        await capture('pin-dialog');
+      }
       final stress = WorkEntry(
         id: 'large',
         date: now,
@@ -292,6 +296,24 @@ void main() {
         ),
       );
       await capture('large-currency');
+      if (homeOnly) {
+        tester.view.physicalSize = const Size(320, 568);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        await capture('narrow-large-currency-text');
+        await tester.ensureVisible(
+          find
+              .descendant(
+                of: find.byType(PageView),
+                matching: find.byType(FittedBox),
+              )
+              .first,
+        );
+        await capture('narrow-large-currency-amount');
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('home-final-bottom-clearance')),
+        );
+        await capture('narrow-large-currency-text-bottom');
+      }
       for (final scenario in [
         (name: 'narrow', size: Size(320, 568), scale: 1.0),
         (name: 'large-text', size: Size(360, 800), scale: 2.0),
@@ -302,14 +324,49 @@ void main() {
         await app();
         for (final tab in [
           'Home',
-          'Entries',
-          'Reports',
-          'Export',
-          'Settings',
+          if (!homeOnly) ...['Entries', 'Reports', 'Export', 'Settings'],
         ]) {
           await tester.tap(find.text(tab).last);
           await capture('${scenario.name}-${tab.toLowerCase()}');
+          if (homeOnly) {
+            await tester.ensureVisible(
+              find.byKey(const ValueKey('home-final-bottom-clearance')),
+            );
+            await capture('${scenario.name}-home-bottom');
+          }
         }
+      }
+      if (homeOnly) {
+        await tester.runAsync(() async {
+          final html = StringBuffer(
+            '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Briska Pay · Home review</title><style>body{margin:32px;background:#f4f4f2;color:#202420;font:16px system-ui}p{max-width:800px;line-height:1.6}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}figure{margin:0;padding:16px;background:white;border-radius:16px}img{max-width:100%;height:auto}figcaption{margin-bottom:12px}a{color:#22664d}</style><h1>Briska Pay · Home</h1><p>Revised financial dashboard: neutral earnings summary, compact payday, recent activity before secondary actions. Actual Flutter renders with sample data. Native ad pixels are not rendered; advertising and consent remain unchanged. Bottom views show scroll reachability. Other screens are outside this review.</p>',
+          );
+          for (final theme in ['light', 'dark']) {
+            html.write('<h2>$theme</h2><main>');
+            for (final name in [
+              'home',
+              'narrow-home',
+              'landscape-home',
+              'large-text-home',
+              'large-currency',
+              'narrow-large-currency-text',
+              'narrow-large-currency-amount',
+              'narrow-large-currency-text-bottom',
+              'narrow-home-bottom',
+              'landscape-home-bottom',
+              'large-text-home-bottom',
+            ]) {
+              html.write(
+                '<figure><figcaption>$name</figcaption><a href="$theme-$name.png"><img loading="lazy" src="$theme-$name.png" alt="$theme $name"></a></figure>',
+              );
+            }
+            html.write('</main>');
+          }
+          html.write('</html>');
+          await File(
+            'build/ui-preview/index.html',
+          ).writeAsString(html.toString());
+        });
       }
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();

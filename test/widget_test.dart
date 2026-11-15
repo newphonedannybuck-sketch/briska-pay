@@ -767,7 +767,7 @@ void main() {
           of: layout,
           matching: find.byType(InkWell),
         );
-        expect(touchTargets, findsNWidgets(4));
+        expect(touchTargets, findsNWidgets(3));
         for (final target in touchTargets.evaluate()) {
           final size = tester.getSize(
             find.byElementPredicate((e) => e == target),
@@ -775,7 +775,7 @@ void main() {
           expect(size.width, greaterThanOrEqualTo(48));
           expect(size.height, greaterThanOrEqualTo(48));
         }
-        for (final label in ['Add Day', 'Calendar', 'Reports', 'Export']) {
+        for (final label in ['Calendar', 'Reports', 'Export']) {
           final labelFinder = find.descendant(
             of: layout,
             matching: find.text(label),
