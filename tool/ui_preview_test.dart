@@ -74,6 +74,28 @@ void main() {
           notes: 'Site completed.',
         ),
       );
+      if (homeOnly) {
+        for (var i = 0; i < 3; i++) {
+          entries.add(
+            WorkEntry(
+              id: 'time-off-$i',
+              entryType: i == 2 ? EntryType.bankHoliday : EntryType.holiday,
+              date: DateTime(now.year, now.month, now.day - 7 - i),
+              siteName: '',
+              startTime: '',
+              finishTime: '',
+              breakMinutes: 0,
+              hourlyRateUsed: 24,
+              dailyAllowance: 0,
+              jobUplift: 0,
+              totalHours: 0,
+              wages: 0,
+              totalPay: 0,
+              notes: '',
+            ),
+          );
+        }
+      }
       final settings = AppSettings(
         fullName: 'Alex Morgan',
         companyName: 'Morgan Building Services',
@@ -330,6 +352,10 @@ void main() {
           await capture('${scenario.name}-${tab.toLowerCase()}');
           if (homeOnly) {
             await tester.ensureVisible(
+              find.byKey(const ValueKey('home-time-off-tiles')),
+            );
+            await capture('${scenario.name}-home-time-off');
+            await tester.ensureVisible(
               find.byKey(const ValueKey('home-final-bottom-clearance')),
             );
             await capture('${scenario.name}-home-bottom');
@@ -339,7 +365,7 @@ void main() {
       if (homeOnly) {
         await tester.runAsync(() async {
           final html = StringBuffer(
-            '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Briska Pay · Home review</title><style>body{margin:32px;background:#f4f4f2;color:#202420;font:16px system-ui}p{max-width:800px;line-height:1.6}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}figure{margin:0;padding:16px;background:white;border-radius:16px}img{max-width:100%;height:auto}figcaption{margin-bottom:12px}a{color:#22664d}</style><h1>Briska Pay · Home</h1><p>Revised financial dashboard: neutral earnings summary, compact payday, recent activity before secondary actions. Actual Flutter renders with sample data. Native ad pixels are not rendered; advertising and consent remain unchanged. Bottom views show scroll reachability. Other screens are outside this review.</p>',
+            '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Briska Pay · Home review</title><style>body{margin:32px;background:#f4f4f2;color:#202420;font:16px system-ui}p{max-width:800px;line-height:1.6}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}figure{margin:0;padding:16px;background:white;border-radius:16px}img{max-width:100%;height:auto}figcaption{margin-bottom:12px}a{color:#22664d}</style><h1>Briska Pay · Home</h1><p>Approved mockup implementation: tinted earnings panel and recorded step chart, payday strip, lavender and amber time-off tiles, compact activity. Chart and time off follow the selected period. Blank and explicit zero hours are indistinguishable in existing storage; no hours are inferred. Actual Flutter renders with sample data. Native ad pixels are not rendered; advertising and consent remain unchanged. Bottom views show scroll reachability. Other screens are outside this review.</p>',
           );
           for (final theme in ['light', 'dark']) {
             html.write('<h2>$theme</h2><main>');
@@ -348,6 +374,9 @@ void main() {
               'narrow-home',
               'landscape-home',
               'large-text-home',
+              'large-text-home-time-off',
+              'narrow-home-time-off',
+              'landscape-home-time-off',
               'large-currency',
               'narrow-large-currency-text',
               'narrow-large-currency-amount',

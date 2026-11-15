@@ -69,7 +69,11 @@ void main() {
   }
 
   String rangeLabel(PayPeriodRange period) =>
-      '${formatCompactDate(period.start)} – ${formatCompactDate(period.end)}';
+      period.start.day == 1 &&
+          period.end.day ==
+              DateTime(period.end.year, period.end.month + 1, 0).day
+      ? formatMonthYear(period.start)
+      : '${formatCompactDateWithYear(period.start)} – ${formatCompactDateWithYear(period.end)}';
 
   Finder pagerText(String value) =>
       find.descendant(of: find.byType(PageView), matching: find.text(value));
@@ -151,17 +155,17 @@ void main() {
       (pager.childrenDelegate as SliverChildBuilderDelegate).childCount,
       4,
     );
-    expect(find.text('CURRENT PAY PERIOD'), findsOneWidget);
+    expect(find.text('Current pay period'), findsOneWidget);
     expect(find.text(rangeLabel(current)), findsOneWidget);
     expect(pagerText('£80.00'), findsOneWidget);
 
     // Index zero is the newest period and cannot advance into the future.
     await swipeLeft(tester);
-    expect(find.text('CURRENT PAY PERIOD'), findsOneWidget);
+    expect(find.text('Current pay period'), findsOneWidget);
     expect(find.text(rangeLabel(current)), findsOneWidget);
 
     await swipeRight(tester);
-    expect(find.text('PREVIOUS PAY PERIOD'), findsOneWidget);
+    expect(find.text('Previous pay period'), findsOneWidget);
     expect(find.text(rangeLabel(previous)), findsOneWidget);
     expect(pagerText('£262.00'), findsOneWidget);
     expect(pagerText('11.5'), findsOneWidget);
@@ -188,7 +192,7 @@ void main() {
     await swipeLeft(tester);
     expect(find.text(rangeLabel(previous)), findsOneWidget);
     await swipeLeft(tester);
-    expect(find.text('CURRENT PAY PERIOD'), findsOneWidget);
+    expect(find.text('Current pay period'), findsOneWidget);
     expect(find.text(rangeLabel(current)), findsOneWidget);
     await swipeLeft(tester);
     expect(find.text(rangeLabel(current)), findsOneWidget);
@@ -320,4 +324,77 @@ void main() {
     expect(find.text(rangeLabel(previous)), findsOneWidget);
     expect(pagerText('£20.00'), findsOneWidget);
   });
+  testWidgets(
+    'period arrows preserve bounds and update separate time-off tiles',
+    (tester) async {
+      const settings = AppSettings(
+        onboardingCompleted: true,
+        payFrequency: calendarMonthlyPayFrequency,
+      );
+      final current = getCurrentPayPeriodForSettings(
+        date: DateTime.now(),
+        settings: settings,
+      );
+      final previous = getPreviousPayPeriodForSettings(
+        period: current,
+        settings: settings,
+      );
+      WorkEntry leave(String id, EntryType type, DateTime date) => WorkEntry(
+        id: id,
+        entryType: type,
+        date: date,
+        siteName: '',
+        startTime: '',
+        finishTime: '',
+        breakMinutes: 0,
+        hourlyRateUsed: 0,
+        dailyAllowance: 0,
+        jobUplift: 0,
+        totalHours: 0,
+        wages: 0,
+        totalPay: 0,
+        notes: '',
+      );
+      await pumpHome(
+        tester,
+        settings: settings,
+        entries: [
+          leave('holiday-now', EntryType.holiday, current.start),
+          leave('holiday-duplicate', EntryType.holiday, current.start),
+          leave('bank-then', EntryType.bankHoliday, previous.start),
+          leave('bank-then-2', EntryType.bankHoliday, previous.end),
+        ],
+      );
+      final tiles = find.byKey(const ValueKey('home-time-off-tiles'));
+      Finder tileText(String text) =>
+          find.descendant(of: tiles, matching: find.text(text));
+      expect(tileText('1 day'), findsOneWidget);
+      expect(tileText('0 days'), findsOneWidget);
+      expect(
+        tester
+            .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.chevron_right_rounded),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.tap(find.byTooltip('Previous pay period'));
+      await tester.pumpAndSettle();
+      expect(find.text(formatMonthYear(previous.start)), findsOneWidget);
+      expect(tileText('2 days'), findsOneWidget);
+      expect(tileText('0 days'), findsOneWidget);
+      expect(
+        tester
+            .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.chevron_left_rounded),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.tap(find.byTooltip('Next pay period'));
+      await tester.pumpAndSettle();
+      expect(tileText('1 day'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

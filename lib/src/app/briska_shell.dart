@@ -1037,6 +1037,11 @@ class _BriskaShellState extends State<BriskaShell> with WidgetsBindingObserver {
                   adsService: _adsService,
                 ),
               NavigationBar(
+                indicatorShape: _index == 0
+                    ? RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      )
+                    : null,
                 selectedIndex: _index,
                 onDestinationSelected: _selectTab,
                 destinations: const [

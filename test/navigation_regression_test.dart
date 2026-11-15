@@ -260,10 +260,8 @@ void main() {
         date: previousMonth,
         settings: settings,
       );
-      final label =
-          '${formatCompactDate(period.start)} – ${formatCompactDate(period.end)}';
-      Finder periodLabel() =>
-          find.descendant(of: pager, matching: find.text(label));
+      final label = formatMonthYear(period.start);
+      Finder periodLabel() => find.text(label);
       expect(periodLabel(), findsOneWidget);
       await tab(tester, 'Reports');
       await tab(tester, 'Home');

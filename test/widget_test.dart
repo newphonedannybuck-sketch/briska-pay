@@ -300,15 +300,12 @@ void main() {
   testWidgets('Briska home and navigation render', (tester) async {
     await tester.pumpWidget(const BriskaApp());
 
-    expect(
-      find.text('Add your first day to start tracking your pay.'),
-      findsOneWidget,
-    );
+    expect(find.text('Briska Pay'), findsOneWidget);
     expect(find.text('Welcome back.'), findsNothing);
-    expect(find.text('CURRENT PAY PERIOD'), findsOneWidget);
+    expect(find.text('Current pay period'), findsOneWidget);
     expect(find.text('Estimated gross pay'), findsOneWidget);
     expect(find.text('Estimated earnings'), findsNothing);
-    expect(find.text('Time through pay period'), findsOneWidget);
+    expect(find.text('Recorded earnings'), findsOneWidget);
     expect(find.text('Period progress'), findsNothing);
     expect(find.text('Next payday'), findsOneWidget);
     expect(find.text('Quick actions'), findsOneWidget);
@@ -554,7 +551,7 @@ void main() {
   ) async {
     await tester.pumpWidget(BriskaApp(initialEntries: sampleEntries));
 
-    expect(find.text('Welcome back.'), findsOneWidget);
+    expect(find.text('Briska Pay'), findsOneWidget);
     expect(
       find.text('Add your first day to start tracking your pay.'),
       findsNothing,
@@ -620,7 +617,7 @@ void main() {
         expect(
           find.descendant(
             of: metric,
-            matching: find.text(scenario.count.toString()),
+            matching: find.text(scenario.count == 0 ? '0' : '1'),
           ),
           findsOneWidget,
         );
@@ -628,7 +625,7 @@ void main() {
           find.descendant(
             of: metric,
             matching: find.text(
-              scenario.count == 1 ? 'Day recorded' : 'Days recorded',
+              scenario.count == 0 ? 'Days worked' : 'Day worked',
             ),
           ),
           findsOneWidget,

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../design_system/briska_cards.dart';
 import '../design_system/briska_radius.dart';
 import '../design_system/briska_theme.dart';
 import 'presentation_format.dart';
@@ -10,7 +9,9 @@ import 'widgets/shared_ui.dart';
 import 'display_format.dart';
 import 'models.dart';
 import 'pay_schedule.dart';
+import 'home_dashboard_summary.dart';
 import 'work_calculator.dart';
+import 'widgets/home_dashboard_widgets.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -78,36 +79,24 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _DashboardHeader(
-                greeting: _greetingFor(now),
-                supportingText: entries.isEmpty
-                    ? 'Add your first day to start tracking your pay.'
-                    : 'Welcome back.',
-              ),
-              const SizedBox(height: 22),
+              _DashboardHeader(greeting: _greetingFor(now)),
+              const SizedBox(height: 14),
               _Entrance(
                 child: _PayPeriodPager(
                   entries: entries,
                   settings: settings,
                   today: today,
+                  nextPayday: nextPayday,
+                  onConfigurePayday: onConfigurePayday,
                 ),
               ),
-              const SizedBox(height: 18),
-              _Entrance(
-                delay: const Duration(milliseconds: 70),
-                child: _NextPaydayCard(
-                  payday: nextPayday,
-                  today: today,
-                  onConfigure: onConfigurePayday,
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
               SectionHeading(
                 title: 'Recent activity',
                 action: 'View all',
                 onTap: onViewEntries,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 4),
               if (recentEntries.isEmpty)
                 const _EmptyActivity()
               else
@@ -120,7 +109,7 @@ class HomeScreen extends StatelessWidget {
                       (item) => _Entrance(
                         delay: Duration(milliseconds: 150 + item.key * 45),
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: _ActivityCard(
                             entry: item.value,
                             settings: settings,
@@ -154,85 +143,54 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({
-    required this.greeting,
-    required this.supportingText,
-  });
-
+  const _DashboardHeader({required this.greeting});
   final String greeting;
-  final String supportingText;
-
   @override
-  Widget build(BuildContext context) =>
-      MediaQuery.textScalerOf(context).scale(1) >= 1.5
-      ? Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Image.asset(
-              'assets/branding/briska-bp-in-app.png',
-              width: 36,
-              height: 36,
-              semanticLabel: 'Briska Pay',
-            ),
-            const SizedBox(height: 12),
-            Text(
-              greeting,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineLarge?.copyWith(fontSize: 22),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              supportingText,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        )
-      : Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    greeting,
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontSize: MediaQuery.textScalerOf(context).scale(1) >= 1.5
-                          ? 22
-                          : 28,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    supportingText,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Semantics(
-              label: 'Briska Pay. Track your hours. Know your pay.',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  'assets/branding/briska-bp-in-app.png',
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ],
-        );
+  Widget build(BuildContext context) {
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Briska Pay',
+          style: TextStyle(
+            fontSize: 24,
+            height: 1.15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.5,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          greeting,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final logo = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        'assets/branding/briska-bp-in-app.png',
+        width: 44,
+        height: 44,
+        semanticLabel: 'Briska Pay. Track your hours. Know your pay.',
+      ),
+    );
+    return MediaQuery.textScalerOf(context).scale(1) >= 1.5
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [logo, const SizedBox(height: 8), text],
+          )
+        : Row(
+            children: [
+              logo,
+              const SizedBox(width: 12),
+              Expanded(child: text),
+            ],
+          );
+  }
 }
 
 class _PayPeriodPager extends StatefulWidget {
@@ -240,11 +198,15 @@ class _PayPeriodPager extends StatefulWidget {
     required this.entries,
     required this.settings,
     required this.today,
+    required this.nextPayday,
+    required this.onConfigurePayday,
   });
 
   final List<WorkEntry> entries;
   final AppSettings settings;
   final DateTime today;
+  final DateTime nextPayday;
+  final VoidCallback onConfigurePayday;
 
   @override
   State<_PayPeriodPager> createState() => _PayPeriodPagerState();
@@ -306,8 +268,57 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
 
   @override
   Widget build(BuildContext context) {
+    final selected = _periods[_page];
+    final summary = HomeDashboardSummary(widget.entries, selected);
+    final monthly =
+        normalisePayFrequency(widget.settings.payFrequency) ==
+        calendarMonthlyPayFrequency;
+    final label = monthly
+        ? formatMonthYear(selected.start)
+        : '${formatCompactDateWithYear(selected.start)} – ${formatCompactDateWithYear(selected.end)}';
+    void move(int index) => _controller.animateToPage(
+      index,
+      duration: BriskaDurations.standard,
+      curve: Curves.easeOutCubic,
+    );
     return Column(
       children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Previous pay period',
+                onPressed: _page > 0 ? () => move(_page - 1) : null,
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Next pay period',
+                onPressed: _page < _periods.length - 1
+                    ? () => move(_page + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
         SizedBox(
           height: _contentHeight,
           child: PageView.builder(
@@ -316,9 +327,6 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
             onPageChanged: (value) => setState(() => _page = value),
             itemBuilder: (context, index) {
               final period = _periods[index];
-              final summary = WorkCalculator.summarize(
-                widget.entries.where((entry) => period.contains(entry.date)),
-              );
               return OverflowBox(
                 minHeight: 0,
                 maxHeight: double.infinity,
@@ -333,35 +341,27 @@ class _PayPeriodPagerState extends State<_PayPeriodPager> {
                   },
                   child: _EarningsHero(
                     title: index == _periods.length - 1
-                        ? 'CURRENT PAY PERIOD'
-                        : 'PREVIOUS PAY PERIOD',
-                    summary: summary,
+                        ? 'Current pay period'
+                        : 'Previous pay period',
+                    summary: HomeDashboardSummary(widget.entries, period),
                     periodStart: period.start,
                     periodEnd: period.end,
-                    today: widget.today,
                   ),
                 ),
               );
             },
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _periods.length,
-            (index) => Container(
-              width: index == _page ? 14 : 5,
-              height: 5,
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(
-                  alpha: index == _page ? 1 : .25,
-                ),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
+        const SizedBox(height: 10),
+        _NextPaydayCard(
+          payday: widget.nextPayday,
+          today: widget.today,
+          onConfigure: widget.onConfigurePayday,
+        ),
+        const SizedBox(height: 10),
+        HomeTimeOffTiles(
+          key: const ValueKey('home-time-off-tiles'),
+          summary: summary,
         ),
       ],
     );
@@ -409,115 +409,135 @@ class _EarningsHero extends StatelessWidget {
     required this.summary,
     required this.periodStart,
     required this.periodEnd,
-    required this.today,
-    this.title = 'CURRENT PAY PERIOD',
+    required this.title,
   });
-
-  final WorkSummary summary;
-  final DateTime periodStart;
-  final DateTime periodEnd;
-  final DateTime today;
+  final HomeDashboardSummary summary;
+  final DateTime periodStart, periodEnd;
   final String title;
-
   @override
   Widget build(BuildContext context) {
-    final periodProgress = calculateCalendarPeriodProgress(
-      periodStart: periodStart,
-      periodEnd: periodEnd,
-      today: today,
-    );
     final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
-      ),
+    final pay = summary.pay;
+    return HomePanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: colors.primary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${formatCompactDate(periodStart)} – ${formatCompactDate(periodEnd)}',
-            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Estimated gross pay',
-            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              formatMoney(summary.totalExpectedPay),
-              maxLines: 1,
-              style: TextStyle(
-                color: colors.onSurface,
-                fontSize: 46,
-                height: 1.15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
           Wrap(
-            spacing: 28,
-            runSpacing: 12,
+            spacing: 12,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _HeroMetric(
-                key: const ValueKey('home-hours-metric'),
-                label: summary.totalHours == 1 ? 'Hour' : 'Hours',
-                value: formatHours(summary.totalHours),
+              const Text(
+                'Estimated gross pay',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
-              _HeroMetric(
-                key: const ValueKey('home-days-recorded-metric'),
-                label: summary.totalDays == 1
-                    ? 'Day recorded'
-                    : 'Days recorded',
-                value: summary.totalDays.toString(),
-              ),
-              _HeroMetric(
-                key: const ValueKey('home-uplift-metric'),
-                label: 'Uplift',
-                value: formatMoney(summary.totalJobUplift),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            children: [
-              Text(
-                'Time through pay period',
-                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
-              ),
-              Text(
-                periodProgress.displayText,
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.stacked_line_chart_rounded,
+                      color: colors.primary,
+                      size: 15,
+                    ),
+                    const SizedBox(width: 4),
+                    const Flexible(
+                      child: Text(
+                        'Recorded earnings',
+                        style: TextStyle(fontSize: 9),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          LinearProgressIndicator(
-            value: periodProgress.progress,
-            minHeight: 2,
-            color: colors.primary,
-            backgroundColor: colors.outlineVariant,
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              formatMoney(pay.totalExpectedPay),
+              maxLines: 1,
+              style: TextStyle(
+                color: colors.onSurface,
+                fontSize: 40,
+                height: 1.15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              Text(
+                title,
+                style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+              ),
+              if (summary.earnings.isNotEmpty)
+                Text(
+                  '${formatCompactDate(summary.earnings.first.date)} – ${formatCompactDate(summary.earnings.last.date)} recorded',
+                  style: TextStyle(fontSize: 9, color: colors.onSurfaceVariant),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          HomeEarningsChart(
+            points: summary.earnings,
+            start: periodStart,
+            end: periodEnd,
+          ),
+          Divider(height: 16, color: colors.primary.withValues(alpha: .2)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final large = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+              final width = large
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 16) / 3;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: width,
+                    child: _HeroMetric(
+                      key: const ValueKey('home-hours-metric'),
+                      icon: Icons.schedule_outlined,
+                      label: pay.totalHours == 1 ? 'Hour' : 'Hours',
+                      value: formatHours(pay.totalHours),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: _HeroMetric(
+                      key: const ValueKey('home-days-recorded-metric'),
+                      icon: Icons.calendar_today_outlined,
+                      label: summary.daysWorked == 1
+                          ? 'Day worked'
+                          : 'Days worked',
+                      value: summary.daysWorked.toString(),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: _HeroMetric(
+                      key: const ValueKey('home-uplift-metric'),
+                      icon: Icons.payments_outlined,
+                      label: 'Uplift',
+                      value: formatMoney(pay.totalJobUplift),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -581,29 +601,46 @@ CalendarPeriodProgress calculateCalendarPeriodProgress({
 }
 
 class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({required this.label, required this.value, super.key});
-
-  final String label;
-  final String value;
-
+  const _HeroMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    super.key,
+  });
+  final String label, value;
+  final IconData icon;
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(
-        value,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      Text(
-        label,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontSize: 11,
+      Icon(icon, size: 19, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 21,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     ],
@@ -616,85 +653,87 @@ class _NextPaydayCard extends StatelessWidget {
     required this.today,
     required this.onConfigure,
   });
-
-  final DateTime? payday;
-  final DateTime today;
+  final DateTime payday, today;
   final VoidCallback onConfigure;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    if (payday == null) {
-      return BriskaCard(
-        child: Row(
-          children: [
-            const _DashboardIcon(icon: Icons.event_busy_outlined),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'No payday configured',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  SizedBox(height: 3),
-                  Text('Set your pay schedule to see a countdown.'),
-                ],
-              ),
-            ),
-            TextButton(onPressed: onConfigure, child: const Text('Configure')),
-          ],
+    final days = calendarDayNumber(payday) - calendarDayNumber(today);
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: .17),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Text(
+        paydayCountdownLabel(days),
+        style: TextStyle(
+          color: colors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
-      );
-    }
-    final days = payday!.difference(today).inDays;
-    final countdown = paydayCountdownLabel(days);
-    return Material(
-      color: colors.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onConfigure,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
+      ),
+    );
+    final details = Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: colors.primary.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.calendar_today_outlined,
+            size: 25,
+            color: colors.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.event_outlined, color: colors.primary, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      'Next payday',
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      formatWeekdayDate(payday!),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      countdown,
-                      style: TextStyle(
-                        color: colors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+              Text(
+                'Next payday',
+                style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+              ),
+              Text(
+                formatCompactDate(payday),
+                semanticsLabel: formatFullDate(payday),
+                style: const TextStyle(
+                  fontSize: 23,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, size: 20),
             ],
+          ),
+        ),
+      ],
+    );
+    return Semantics(
+      button: true,
+      label: 'Configure pay schedule',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onConfigure,
+          borderRadius: BorderRadius.circular(16),
+          child: HomePanel(
+            waves: true,
+            padding: const EdgeInsets.all(12),
+            child: MediaQuery.textScalerOf(context).scale(1) >= 1.5
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [details, const SizedBox(height: 8), badge],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: details),
+                      const SizedBox(width: 8),
+                      badge,
+                    ],
+                  ),
           ),
         ),
       ),
@@ -1138,14 +1177,16 @@ class _ActivityCard extends StatelessWidget {
           }
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stacked =
-                  constraints.maxWidth < 340 ||
+                  constraints.maxWidth < 300 ||
                   MediaQuery.textScalerOf(context).scale(1) >= 1.5;
               final details = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1154,15 +1195,15 @@ class _ActivityCard extends StatelessWidget {
                     _entryTitle(item),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
-                    '${_weekday(item.date)}, ${item.date.day} ${_shortMonth(item.date)}  •  ${formatHoursLabel(item.totalHours)}',
+                    '${formatHoursLabel(item.totalHours)} · ${item.type == EntryType.workDay ? settings.labelForRate(item.rateType) : _entryDayTypeLabel(item)}',
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -1171,36 +1212,64 @@ class _ActivityCard extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  formatMoney(item.totalPay),
+                  formatMoney(item.grossPay),
                   maxLines: 1,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               );
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [details, const SizedBox(height: 8), amount],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: details),
-                  const SizedBox(width: 16),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: constraints.maxWidth * .4,
+              final badge = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${item.date.day}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        height: 1.1,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    child: amount,
+                    Text(
+                      _shortMonth(item.date).toUpperCase(),
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                  ],
+                ),
+              );
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  badge,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: stacked
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              details,
+                              const SizedBox(height: 8),
+                              amount,
+                            ],
+                          )
+                        : details,
                   ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: colors.onSurfaceVariant,
-                  ),
+                  if (!stacked) ...[
+                    const SizedBox(width: 10),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth * .3,
+                      ),
+                      child: amount,
+                    ),
+                  ],
                 ],
               );
             },
@@ -1227,23 +1296,6 @@ class _EmptyActivity extends StatelessWidget {
         Text('Add your first day to see your earnings and activity.'),
       ],
     ),
-  );
-}
-
-class _DashboardIcon extends StatelessWidget {
-  const _DashboardIcon({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 46,
-    height: 46,
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.primary.withValues(alpha: .09),
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Icon(icon, color: Theme.of(context).colorScheme.primary),
   );
 }
 
