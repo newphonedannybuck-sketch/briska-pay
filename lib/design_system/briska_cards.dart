@@ -1,25 +1,43 @@
 import 'package:flutter/material.dart';
 
 import 'briska_spacing.dart';
+import 'briska_surfaces.dart';
 
 class BriskaCard extends StatelessWidget {
   const BriskaCard({
     required this.child,
     this.padding = const EdgeInsets.all(BriskaSpacing.cardPadding),
     this.onTap,
+    this.tint,
     super.key,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
+  final Color? tint;
 
   @override
   Widget build(BuildContext context) {
     final content = Padding(padding: padding, child: child);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
+    final decoration = BriskaSurfaces.panel(context, tint: tint);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        boxShadow: decoration.boxShadow,
+        borderRadius: decoration.borderRadius,
+      ),
+      child: Card(
+        color: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: decoration.copyWith(boxShadow: []),
+          child: onTap == null
+              ? content
+              : InkWell(onTap: onTap, child: content),
+        ),
+      ),
     );
   }
 }

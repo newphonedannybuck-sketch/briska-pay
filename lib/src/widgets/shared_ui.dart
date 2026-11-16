@@ -187,7 +187,31 @@ class PageHeading extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.headlineLarge),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: .15),
+                  ),
+                ),
+                child: Icon(switch (title) {
+                  'Entries' => Icons.calendar_month_outlined,
+                  'Reports' => Icons.insights_outlined,
+                  'Export' => Icons.ios_share_outlined,
+                  'Settings' => Icons.tune_rounded,
+                  _ => Icons.description_outlined,
+                }, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(title, style: theme.textTheme.headlineLarge),
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(
             subtitle,
@@ -217,7 +241,18 @@ class SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       if (icon != null) ...[
-        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
         const SizedBox(width: 10),
       ],
       Expanded(

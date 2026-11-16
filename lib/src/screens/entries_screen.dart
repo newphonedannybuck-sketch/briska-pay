@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../display_format.dart';
@@ -197,7 +198,8 @@ class _EntriesScreenState extends State<EntriesScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Card(
+          BriskaCard(
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(

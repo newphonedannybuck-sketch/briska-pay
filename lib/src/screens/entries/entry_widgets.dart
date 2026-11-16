@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../design_system/briska_colors.dart';
+import '../../../design_system/briska_surfaces.dart';
 import '../../../design_system/briska_theme.dart';
 import '../../display_format.dart';
 import '../../presentation_format.dart';
@@ -56,7 +56,15 @@ class EntrySaveBar extends StatelessWidget {
                           'Estimated gross pay',
                           style: theme.textTheme.bodySmall,
                         ),
-                        Text(amount, style: theme.textTheme.titleMedium),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            amount,
+                            maxLines: 1,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -78,7 +86,15 @@ class EntrySaveBar extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(amount, style: theme.textTheme.titleLarge),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            amount,
+                            maxLines: 1,
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -257,32 +273,38 @@ class CalculationLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = foregroundColor ?? Theme.of(context).colorScheme.onSurface;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: emphasize ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
-            style: TextStyle(
-              color: color,
-              fontSize: emphasize ? 17 : 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
+    final caption = Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontWeight: emphasize ? FontWeight.w700 : FontWeight.w500,
+      ),
     );
+    final amount = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        value,
+        maxLines: 1,
+        style: TextStyle(
+          color: color,
+          fontSize: emphasize ? 17 : 14,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    return MediaQuery.textScalerOf(context).scale(1) >= 1.5 || value.length > 14
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [caption, const SizedBox(height: 4), amount],
+          )
+        : Row(
+            children: [
+              Expanded(child: caption),
+              const SizedBox(width: 8),
+              Flexible(child: amount),
+            ],
+          );
   }
 }
 
@@ -305,55 +327,58 @@ class EarningsSummaryCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: BriskaColors.hero,
-        borderRadius: BorderRadius.circular(22),
-      ),
+      decoration: BriskaSurfaces.panel(context, prominent: true),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Estimated gross pay',
             style: TextStyle(
-              color: Colors.white70,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
-          BriskaAnimatedText(
-            formatMoney(calculation.totalPay),
-            style: Theme.of(
-              context,
-            ).textTheme.displaySmall?.copyWith(color: Colors.white),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: BriskaAnimatedText(
+              formatMoney(calculation.totalPay),
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           CalculationLine(
             label: 'Hours',
             value: formatHoursLabel(calculation.totalHours),
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
           const SizedBox(height: 8),
           CalculationLine(
             label: 'Rate',
             value: '${formatMoney(rate)} / hour',
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
           const SizedBox(height: 8),
           CalculationLine(
             label: 'Allowance',
             value: formatMoney(allowance),
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
           const SizedBox(height: 8),
           CalculationLine(
             label: 'Uplift',
             value: formatMoney(uplift),
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Divider(
-              color: Colors.white.withValues(alpha: .2),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: .2),
               height: 1,
             ),
           ),
@@ -361,7 +386,7 @@ class EarningsSummaryCard extends StatelessWidget {
             label: 'Estimated gross pay',
             value: formatMoney(calculation.totalPay),
             emphasize: true,
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
         ],
       ),

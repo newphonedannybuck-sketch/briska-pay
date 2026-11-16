@@ -1,3 +1,4 @@
+import 'package:briska/src/screens/professional_reports_screen.dart';
 import 'package:briska/src/home_dashboard_summary.dart';
 import 'package:briska/src/models.dart';
 import 'package:briska/src/pay_schedule.dart';
@@ -221,6 +222,64 @@ void main() {
       } finally {
         semantics.dispose();
       }
+    },
+  );
+  testWidgets(
+    'Reports uses Home distinct-date time-off counts and recorded hours per period',
+    (tester) async {
+      final now = DateTime.now();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ProfessionalReportsScreen(
+              settings: const AppSettings(),
+              entries: [
+                entry(
+                  'holiday-a',
+                  DateTime(now.year, now.month, 1),
+                  type: EntryType.holiday,
+                  hours: 3,
+                ),
+                entry(
+                  'holiday-b',
+                  DateTime(now.year, now.month, 1, 12),
+                  type: EntryType.holiday,
+                  hours: 2,
+                ),
+                entry(
+                  'holiday-blank',
+                  DateTime(now.year, now.month, 2),
+                  type: EntryType.holiday,
+                ),
+                entry(
+                  'bank',
+                  DateTime(now.year, now.month, 2),
+                  type: EntryType.bankHoliday,
+                ),
+                entry(
+                  'bank-duplicate',
+                  DateTime(now.year, now.month, 2, 15),
+                  type: EntryType.bankHoliday,
+                ),
+                entry(
+                  'previous',
+                  DateTime(now.year, now.month - 1, 1),
+                  type: EntryType.bankHoliday,
+                  hours: 4,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('2 days · 5 recorded hours'), findsOneWidget);
+      expect(find.text('1 (1 / 0) · Hours not entered'), findsOneWidget);
+      await tester.tap(find.text('Last month'));
+      await tester.pumpAndSettle();
+      expect(find.text('0 days · No days recorded'), findsOneWidget);
+      expect(find.text('1 (1 / 0) · 4 recorded hours'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 }

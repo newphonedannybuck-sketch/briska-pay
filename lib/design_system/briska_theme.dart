@@ -247,6 +247,23 @@ abstract final class BriskaTheme {
           borderRadius: BorderRadius.circular(BriskaRadii.lg),
         ),
       ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: colors.surface,
+        headerBackgroundColor: colors.primaryContainer,
+        headerForegroundColor: colors.onPrimaryContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+      ),
+      expansionTileTheme: ExpansionTileThemeData(
+        iconColor: colors.primary,
+        collapsedIconColor: colors.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        collapsedShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
       dropdownMenuTheme: DropdownMenuThemeData(
         textStyle: textTheme.bodyMedium,
         inputDecorationTheme: const InputDecorationTheme(),
@@ -264,10 +281,13 @@ abstract final class BriskaTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: colors.surface,
+        elevation: 8,
+        shadowColor: Colors.black.withValues(alpha: .16),
+        backgroundColor: Color.lerp(colors.surface, colors.primary, .025),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(BriskaRadii.xl),
+          side: BorderSide(color: colors.outlineVariant),
         ),
         titleTextStyle: textTheme.titleLarge,
         contentTextStyle: textTheme.bodyMedium,
@@ -276,7 +296,7 @@ abstract final class BriskaTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
-        modalBackgroundColor: colors.surface,
+        modalBackgroundColor: Color.lerp(colors.surface, colors.primary, .025),
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -295,6 +315,9 @@ abstract final class BriskaTheme {
         elevation: 0,
         height: 72,
         indicatorColor: colors.primaryContainer,
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected)

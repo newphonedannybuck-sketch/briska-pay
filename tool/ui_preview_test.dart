@@ -1,8 +1,15 @@
 // Render actual Flutter screens without accessing installed app data.
 // Run: flutter test tool/ui_preview_test.dart --reporter expanded
 // Home-only review: flutter test tool/ui_preview_test.dart --dart-define=HOME_ONLY=true
-// Images and generated Home index: build/ui-preview/ (ignored by Git).
+// Images and generated review index: build/ui-preview/ (ignored by Git).
 import 'dart:io';
+import 'dart:convert';
+import 'package:briska/src/backup_service.dart';
+import 'package:briska/src/ads/ads_configuration.dart';
+import 'package:briska/src/ads/ads_consent_coordinator.dart';
+import 'package:briska/src/ads/ads_service.dart';
+import 'package:briska/src/local_storage.dart';
+import 'package:briska/screens/loading_screen.dart';
 import 'dart:ui' as ui;
 
 import 'package:briska/main.dart';
@@ -49,11 +56,15 @@ void main() {
           InMemorySharedPreferencesAsync.empty();
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
+      // This rendering test is outside test/ and uses the same isolated storage hook.
+      // ignore: invalid_use_of_visible_for_testing_member
+      addTearDown(() => LocalStorage.readStringOverride = null);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.view.resetViewInsets);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       final boundaryKey = GlobalKey();
+      final captures = <String>[];
       final now = DateTime.now();
       final entries = List.generate(
         6,
@@ -74,7 +85,7 @@ void main() {
           notes: 'Site completed.',
         ),
       );
-      if (homeOnly) {
+      {
         for (var i = 0; i < 3; i++) {
           entries.add(
             WorkEntry(
@@ -104,14 +115,15 @@ void main() {
         onboardingCompleted: true,
         themeMode: mode,
       );
-      Future<void> capture(String name) async {
+      Future<void> capture(String name, {bool settle = true}) async {
+        if (!name.endsWith('launcher')) captures.add(name);
         await tester.runAsync(
           () => precacheImage(
             const AssetImage('assets/branding/briska-bp-in-app.png'),
             boundaryKey.currentContext!,
           ),
         );
-        await tester.pumpAndSettle();
+        if (settle) await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: name);
         await tester.runAsync(() async {
           final boundary =
@@ -138,9 +150,52 @@ void main() {
           ),
         ),
       );
+      if (!homeOnly) {
+        await tester.runAsync(() async {
+          final fixture = File('build/ui-preview/preview-backup.json');
+          await fixture.parent.create(recursive: true);
+          await File(
+            'build/ui-preview/preview-report.pdf',
+          ).writeAsString('%PDF-1.4\n%%EOF');
+          await fixture.writeAsString(
+            jsonEncode(
+              BriskaBackupData(
+                createdAt: now,
+                settings: settings,
+                workEntries: entries,
+                exportRecords: [],
+              ).toJson(),
+            ),
+          );
+        });
+        const picker = MethodChannel('plugins.flutter.io/file_selector');
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              picker,
+              (_) async => [
+                File('build/ui-preview/preview-backup.json').absolute.path,
+              ],
+            );
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(picker, null),
+        );
+      }
       await app();
       await capture('home');
       if (!homeOnly) {
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('recent-activity-preview-0')),
+        );
+        await tester.tap(
+          find.byKey(const ValueKey('recent-activity-preview-0')),
+        );
+        await capture('entry-details');
+        await tester.ensureVisible(find.text('Edit Entry'));
+        await capture('entry-details-bottom');
+        await app();
         for (final tab in ['Entries', 'Reports', 'Export', 'Settings']) {
           await tester.tap(find.text(tab).last);
           await capture(tab.toLowerCase());
@@ -149,25 +204,98 @@ void main() {
               find.byKey(const ValueKey('entry-card-preview-0')),
             );
             await capture('entry-list');
+            await tester.ensureVisible(
+              find.widgetWithText(TextButton, 'Delete').first,
+            );
+            await tester.tap(find.widgetWithText(TextButton, 'Delete').first);
+            await capture('delete-day-dialog');
+            await tester.tap(find.text('Cancel'));
+            await tester.pumpAndSettle();
           }
           if (tab == 'Export') {
+            await tester.tap(find.widgetWithText(ChoiceChip, 'Custom dates'));
+            await capture('export-custom-dates');
+            await tester.tap(find.text('From date'));
+            await capture('date-picker');
+            await tester.tap(find.text('Cancel'));
+            await tester.pumpAndSettle();
+            await tester.tap(find.widgetWithText(ChoiceChip, 'This month'));
+            await tester.pumpAndSettle();
             await tester.ensureVisible(find.text('More options'));
             await tester.tap(find.text('More options'));
             await tester.pumpAndSettle();
             await tester.ensureVisible(find.text('Export report'));
             await capture('export-options');
           }
+          if (tab == 'Reports') {
+            await tester.ensureVisible(find.text('Work pattern'));
+            await capture('reports-work-pattern');
+          }
           if (tab == 'Settings') {
+            for (final section in [
+              'Pay & currency',
+              'Work defaults',
+              'Pay schedule',
+              'Appearance',
+              'Backup & restore',
+            ]) {
+              final finder = find.text(section);
+              if (finder.evaluate().isNotEmpty) {
+                await tester.ensureVisible(finder);
+                await capture(
+                  'settings-${section.toLowerCase().replaceAll(RegExp('[^a-z]+'), '-')}',
+                );
+              }
+            }
             await tester.ensureVisible(find.text('Security'));
             await capture('settings-security');
+            await tester.ensureVisible(find.text('Restore Briska Pay Backup'));
+            await tester.tap(find.text('Restore Briska Pay Backup'));
+            for (
+              var attempt = 0;
+              attempt < 50 &&
+                  find.text('Restore Briska Pay backup?').evaluate().isEmpty;
+              attempt++
+            ) {
+              await tester.runAsync(
+                () => Future<void>.delayed(const Duration(milliseconds: 10)),
+              );
+              await tester.pump();
+            }
+            expect(find.text('Restore Briska Pay backup?'), findsOneWidget);
+            await capture('restore-confirmation');
+            await tester.tap(find.text('Cancel'));
+            await tester.pumpAndSettle();
+            final currency = find.byWidgetPredicate(
+              (widget) =>
+                  widget is DropdownButtonFormField<String> &&
+                  widget.initialValue == settings.currency.code,
+            );
+            await tester.ensureVisible(currency);
+            tester.widget<DropdownButtonFormField<String>>(currency).onChanged!(
+              'USD',
+            );
+            await capture('currency-confirmation');
+            await tester.tap(find.text('Cancel'));
+            await tester.pumpAndSettle();
           }
         }
         await tester.tap(find.text('Home').last);
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FloatingActionButton, 'Add Day'));
         await capture('add-day');
-        await tester.tap(find.text('Holiday'));
+        for (final type in ['Bank Holiday', 'Sick Day', 'Unpaid Day Off']) {
+          await tester.ensureVisible(find.widgetWithText(ChoiceChip, type));
+          await tester.tap(find.widgetWithText(ChoiceChip, type));
+          await capture('add-${type.toLowerCase().replaceAll(' ', '-')}');
+        }
+        await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Holiday'));
+        await tester.tap(find.widgetWithText(ChoiceChip, 'Holiday'));
         await capture('holiday');
+        await tester.tap(find.text('Save Entry'));
+        await capture('duplicate-entry-dialog');
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
         final hourField = find.byKey(const ValueKey('holiday-hours-field'));
         await tester.ensureVisible(hourField);
         await tester.tap(hourField);
@@ -175,6 +303,11 @@ void main() {
         tester.view.viewInsets = const FakeViewPadding(bottom: 280);
         await capture('holiday-focused');
         tester.view.resetViewInsets();
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
+        await tester.pageBack();
+        await capture('discard-changes-dialog');
+        await tester.tap(find.text('Keep Editing'));
 
         Future<void> standalone(String name, Widget child) async {
           await tester.pumpWidget(
@@ -191,6 +324,56 @@ void main() {
           await capture(name);
         }
 
+        for (final type in EntryType.values) {
+          final edited = type == EntryType.workDay
+              ? entries.first
+              : WorkEntry(
+                  id: 'edit-${type.name}',
+                  entryType: type,
+                  date: now,
+                  siteName: '',
+                  startTime: '',
+                  finishTime: '',
+                  breakMinutes: 0,
+                  hourlyRateUsed: 24,
+                  dailyAllowance: 0,
+                  jobUplift: 0,
+                  totalHours: 0,
+                  wages: 0,
+                  totalPay: 0,
+                  notes: '',
+                );
+          await standalone(
+            'edit-${type.name}',
+            AddWorkDayScreen(
+              preferences: settings,
+              savedEntries: [edited],
+              initialEntry: edited,
+              onSave: (_) async => true,
+            ),
+          );
+        }
+        await tester.runAsync(
+          () => precacheImage(
+            const AssetImage('assets/branding/briska-bp-splash.png'),
+            boundaryKey.currentContext!,
+          ),
+        );
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: boundaryKey,
+            child: MaterialApp(
+              key: UniqueKey(),
+              debugShowCheckedModeBanner: false,
+              theme: mode == 'light' ? BriskaTheme.light : BriskaTheme.dark,
+              home: LoadingScreen(
+                useLocalStorage: false,
+                initialSettings: settings,
+              ),
+            ),
+          ),
+        );
+        await capture('launch-splash', settle: false);
         await standalone(
           'onboarding',
           OnboardingScreen(initialSettings: settings, onComplete: (_) async {}),
@@ -203,6 +386,9 @@ void main() {
             verifyPin: (_) async => false,
           ),
         );
+        await tester.enterText(find.byType(TextField), '1234');
+        await tester.tap(find.text('Unlock'));
+        await capture('lock-error');
         await standalone(
           'recovery',
           StartupRecoveryScreen(
@@ -217,6 +403,20 @@ void main() {
           'about',
           const AboutBriskaScreen(showTesterTools: false),
         );
+        await tester.ensureVisible(find.text('Open Source Licences'));
+        await tester.tap(find.text('Open Source Licences'));
+        await capture('licences');
+        await standalone(
+          'terms',
+          const LegalTextScreen(
+            title: 'Terms of Use',
+            assetPath: 'assets/legal/terms_disclaimer.md',
+          ),
+        );
+        await standalone('beta-checklist', const BetaChecklistScreen());
+        await tester.ensureVisible(find.text('Reset checklist'));
+        await tester.tap(find.text('Reset checklist'));
+        await capture('checklist-reset-dialog');
         await standalone(
           'legal',
           const LegalTextScreen(
@@ -246,7 +446,9 @@ void main() {
                 id: 'preview-file',
                 fileName: 'Alex_Morgan_30_November_2026.pdf',
                 fileType: 'PDF Timesheet',
-                filePath: '',
+                filePath: File(
+                  'build/ui-preview/preview-report.pdf',
+                ).absolute.path,
                 exportedAt: now,
                 periodLabel: 'November 2026',
                 workDays: 6,
@@ -267,7 +469,53 @@ void main() {
         await tester.ensureVisible(find.text('Delete'));
         await tester.tap(find.text('Delete'));
         await capture('delete-dialog');
+        await tester.tap(find.text('Delete file and remove from library'));
+        await capture('delete-file-confirmation');
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        await standalone(
+          'export-library-missing',
+          ExportLibraryScreen(
+            records: [
+              ExportedFileRecord(
+                id: 'missing',
+                fileName: 'Missing_Report.pdf',
+                fileType: 'PDF Timesheet',
+                filePath: '',
+                exportedAt: now,
+                periodLabel: 'November 2026',
+                workDays: 6,
+                totalHours: 51,
+                totalPay: 1399,
+              ),
+            ],
+            onUpdate: (_) async => true,
+            onDelete: (_) async => true,
+          ),
+        );
 
+        // ignore: invalid_use_of_visible_for_testing_member
+        LocalStorage.readStringOverride = (key) async =>
+            key == 'work_entries_v1' ? 'invalid-preview-data' : null;
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: boundaryKey,
+            child: BriskaApp(
+              key: UniqueKey(),
+              useLocalStorage: true,
+              adsConsentCoordinator: const InactiveAdsConsentCoordinator(),
+              adsService: DisabledAdsService(AdsConfiguration.current()),
+              initialSettings: settings,
+              appLockConfigLoader: () async => const AppLockConfig(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Reset local data'));
+        await capture('reset-data-confirmation');
+        await tester.tap(find.text('Cancel'));
+        // ignore: invalid_use_of_visible_for_testing_member
+        LocalStorage.readStringOverride = null;
         await standalone(
           'pin-launcher',
           Builder(
@@ -289,6 +537,86 @@ void main() {
         );
         await tester.tap(find.text('Open PIN'));
         await capture('pin-dialog');
+        await tester.tap(find.text('Cancel'));
+        for (final disabling in [true, false]) {
+          await standalone(
+            'security-launcher',
+            Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    onPressed: () => showAppLockPinDialog(
+                      context,
+                      disabling: disabling,
+                      hasPin: () => false,
+                      onDisableLock: (_) async {},
+                      onSetLockPin: (_, _) async {},
+                    ),
+                    child: const Text('Open security'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Open security'));
+          await capture(
+            disabling ? 'disable-lock-dialog' : 'create-pin-dialog',
+          );
+        }
+        await standalone(
+          'export-created-launcher',
+          Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (dialogContext) => ExportCreatedDialog(
+                      record: ExportedFileRecord(
+                        id: 'created',
+                        fileName: 'Alex_Morgan_November_2026_Timesheet.pdf',
+                        fileType: 'PDF Timesheet',
+                        filePath: '',
+                        exportedAt: now,
+                        periodLabel: 'November 2026',
+                        workDays: 6,
+                        totalHours: 51,
+                        totalPay: 1399,
+                        fileSize: 24576,
+                      ),
+                      onDone: () => Navigator.pop(dialogContext),
+                      onOpen: () {},
+                      onPrint: () {},
+                      onShare: () {},
+                    ),
+                  ),
+                  child: const Text('Show export'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Show export'));
+        await capture('export-created-dialog');
+        await standalone(
+          'export-library-empty',
+          ExportLibraryScreen(
+            records: const [],
+            onUpdate: (_) async => true,
+            onDelete: (_) async => true,
+          ),
+        );
+        await standalone(
+          'restore-recovery',
+          StartupRecoveryScreen(
+            error: 'Preview',
+            dataIsCorrupt: true,
+            restoreRecoveryRequired: true,
+            onRetry: () async {},
+            onRestoreBackup: () async {},
+            onResetLocalData: () async {},
+          ),
+        );
       }
       final stress = WorkEntry(
         id: 'large',
@@ -313,11 +641,26 @@ void main() {
             initialEntries: [stress],
             initialSettings: settings.copyWith(
               currency: CurrencyCatalog.byCode('INR'),
+              fullName: 'Alexandra Morgan-Williams',
+              companyName:
+                  'Morgan Building and Restoration Services International',
             ),
           ),
         ),
       );
       await capture('large-currency');
+      if (!homeOnly) {
+        for (final tab in ['Entries', 'Reports', 'Export', 'Settings']) {
+          await tester.tap(find.text(tab).last);
+          await capture('large-currency-${tab.toLowerCase()}');
+          if (tab == 'Entries') {
+            await tester.ensureVisible(
+              find.byKey(const ValueKey('entry-card-large')),
+            );
+            await capture('long-entry-name');
+          }
+        }
+      }
       if (homeOnly) {
         tester.view.physicalSize = const Size(320, 568);
         tester.platformDispatcher.textScaleFactorTestValue = 2;
@@ -350,7 +693,7 @@ void main() {
         ]) {
           await tester.tap(find.text(tab).last);
           await capture('${scenario.name}-${tab.toLowerCase()}');
-          if (homeOnly) {
+          if (tab == 'Home') {
             await tester.ensureVisible(
               find.byKey(const ValueKey('home-time-off-tiles')),
             );
@@ -361,30 +704,30 @@ void main() {
             await capture('${scenario.name}-home-bottom');
           }
         }
+        if (!homeOnly) {
+          await tester.tap(find.text('Home').last);
+          await tester.pumpAndSettle();
+          await tester.tap(find.byTooltip('Add Day'));
+          await capture('${scenario.name}-add-day');
+          await tester.ensureVisible(
+            find.widgetWithText(ChoiceChip, 'Holiday'),
+          );
+          await tester.tap(find.widgetWithText(ChoiceChip, 'Holiday'));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(
+            find.byKey(const ValueKey('holiday-hours-field')),
+          );
+          await capture('${scenario.name}-holiday-hours');
+        }
       }
-      if (homeOnly) {
+      {
         await tester.runAsync(() async {
           final html = StringBuffer(
-            '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Briska Pay · Home review</title><style>body{margin:32px;background:#f4f4f2;color:#202420;font:16px system-ui}p{max-width:800px;line-height:1.6}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}figure{margin:0;padding:16px;background:white;border-radius:16px}img{max-width:100%;height:auto}figcaption{margin-bottom:12px}a{color:#22664d}</style><h1>Briska Pay · Home</h1><p>Approved mockup implementation: tinted earnings panel and recorded step chart, payday strip, lavender and amber time-off tiles, compact activity. Chart and time off follow the selected period. Blank and explicit zero hours are indistinguishable in existing storage; no hours are inferred. Actual Flutter renders with sample data. Native ad pixels are not rendered; advertising and consent remain unchanged. Bottom views show scroll reachability. Other screens are outside this review.</p>',
+            '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Briska Pay · Complete UI review</title><style>body{margin:32px;background:#f4f4f2;color:#202420;font:16px system-ui}p{max-width:800px;line-height:1.6}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}figure{margin:0;padding:16px;background:white;border-radius:16px}img{max-width:100%;height:auto}figcaption{margin-bottom:12px}a{color:#22664d}</style><h1>Briska Pay · Complete UI review</h1><p>Approved mockup implementation: tinted earnings panel and recorded step chart, payday strip, lavender and amber time-off tiles, compact activity. Chart and time off follow the selected period. Blank and explicit zero hours are indistinguishable in existing storage; no hours are inferred. Actual Flutter renders with sample data. Native ad pixels are not rendered; advertising and consent remain unchanged. Bottom views show scroll reachability. All application routes inherit the same light/dark surfaces, inputs and dialog styling. Native OS file pickers, biometric prompts, keyboards and live ads are outside these Flutter renders.</p>',
           );
           for (final theme in ['light', 'dark']) {
             html.write('<h2>$theme</h2><main>');
-            for (final name in [
-              'home',
-              'narrow-home',
-              'landscape-home',
-              'large-text-home',
-              'large-text-home-time-off',
-              'narrow-home-time-off',
-              'landscape-home-time-off',
-              'large-currency',
-              'narrow-large-currency-text',
-              'narrow-large-currency-amount',
-              'narrow-large-currency-text-bottom',
-              'narrow-home-bottom',
-              'landscape-home-bottom',
-              'large-text-home-bottom',
-            ]) {
+            for (final name in captures.toSet()) {
               html.write(
                 '<figure><figcaption>$name</figcaption><a href="$theme-$name.png"><img loading="lazy" src="$theme-$name.png" alt="$theme $name"></a></figure>',
               );

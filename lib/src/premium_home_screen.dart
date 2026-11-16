@@ -1,3 +1,4 @@
+import '../design_system/briska_surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -1024,10 +1025,7 @@ class _FinancialDetails extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(BriskaRadii.lg),
-      ),
+      decoration: BriskaSurfaces.panel(context, prominent: true),
       child: Column(
         children: [
           if (entry.wages != 0)
@@ -1095,31 +1093,46 @@ class _MoneyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        Expanded(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final amount = FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
           child: Text(
-            label,
+            formatMoney(value),
+            key: ValueKey(
+              'entry-details-${label.toLowerCase().replaceAll(' ', '-')}',
+            ),
             style: TextStyle(
+              color: prominent ? Theme.of(context).colorScheme.primary : null,
+              fontSize: prominent ? 20 : 15,
               fontWeight: strong || prominent
                   ? FontWeight.w700
-                  : FontWeight.w500,
+                  : FontWeight.w600,
             ),
           ),
-        ),
-        Text(
-          formatMoney(value),
-          key: ValueKey(
-            'entry-details-${label.toLowerCase().replaceAll(' ', '-')}',
-          ),
+        );
+        final caption = Text(
+          label,
           style: TextStyle(
-            color: prominent ? Theme.of(context).colorScheme.primary : null,
-            fontSize: prominent ? 18 : null,
-            fontWeight: strong || prominent ? FontWeight.w700 : FontWeight.w600,
+            fontWeight: strong || prominent ? FontWeight.w700 : FontWeight.w500,
           ),
-        ),
-      ],
+        );
+        return MediaQuery.textScalerOf(context).scale(1) >= 1.5 ||
+                formatMoney(value).length > 12
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [caption, const SizedBox(height: 4), amount],
+              )
+            : Row(
+                children: [
+                  Expanded(child: caption),
+                  const SizedBox(width: 12),
+                  Flexible(child: amount),
+                ],
+              );
+      },
     ),
   );
 }

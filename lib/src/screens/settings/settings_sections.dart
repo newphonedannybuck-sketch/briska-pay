@@ -1,3 +1,4 @@
+import '../../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import '../../../design_system/briska_spacing.dart';
 import '../../currency.dart';
@@ -32,7 +33,8 @@ class ProfileSettingsSection extends StatelessWidget {
   final int formRevision;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => BriskaCard(
+    padding: EdgeInsets.zero,
     child: Padding(
       padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
       child: Column(
@@ -99,7 +101,8 @@ class PaySettingsSection extends StatelessWidget {
   final void Function(String, {required bool primary}) onRateChanged;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => BriskaCard(
+    padding: EdgeInsets.zero,
     child: Padding(
       padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
       child: Column(
@@ -229,7 +232,8 @@ class WorkDefaultsSection extends StatelessWidget {
   final int formRevision;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => BriskaCard(
+    padding: EdgeInsets.zero,
     child: Padding(
       padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
       child: Column(
@@ -295,6 +299,9 @@ class WorkDefaultsSection extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: SegmentedButton<String>(
+              direction: MediaQuery.textScalerOf(context).scale(1) >= 1.5
+                  ? Axis.vertical
+                  : Axis.horizontal,
               segments: [
                 ButtonSegment(
                   value: 'primary',
@@ -344,7 +351,8 @@ class PayScheduleSection extends StatelessWidget {
   final VoidCallback onChooseAnchorDate;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => BriskaCard(
+    padding: EdgeInsets.zero,
     child: Padding(
       padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
       child: Column(

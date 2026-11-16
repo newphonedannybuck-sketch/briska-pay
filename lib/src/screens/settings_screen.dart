@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'settings/settings_sections.dart';
 import 'settings/app_lock_pin_dialog.dart';
 
@@ -328,7 +329,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.palette_outlined,
           ),
           const SizedBox(height: 10),
-          Card(
+          BriskaCard(
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
               child: Column(
@@ -337,6 +339,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const FieldLabel('Theme'),
                   const SizedBox(height: 10),
                   SegmentedButton<ThemeMode>(
+                    direction: MediaQuery.textScalerOf(context).scale(1) >= 1.5
+                        ? Axis.vertical
+                        : Axis.horizontal,
                     segments: const [
                       ButtonSegment(
                         value: ThemeMode.light,
@@ -399,7 +404,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 20),
           const SectionHeading(title: 'Security', icon: Icons.shield_outlined),
           const SizedBox(height: 10),
-          Card(
+          BriskaCard(
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
               child: Column(
@@ -565,7 +571,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.backup_outlined,
           ),
           const SizedBox(height: 10),
-          Card(
+          BriskaCard(
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
               child: Column(
@@ -589,7 +596,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (widget.privacyOptionsRequired) ...[
             const SectionHeading(title: 'Advertising'),
             const SizedBox(height: 10),
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: ListTile(
                 leading: const Icon(Icons.privacy_tip_outlined),
                 title: const Text('Advertising privacy choices'),
@@ -616,7 +624,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
           const SectionHeading(title: 'Briska Pay'),
           const SizedBox(height: 10),
-          Card(
+          BriskaCard(
+            padding: EdgeInsets.zero,
             child: ListTile(
               leading: const BriskaLogo(size: 40),
               title: const Text('About Briska Pay'),
@@ -631,7 +640,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
             const SectionHeading(title: 'Beta feedback'),
             const SizedBox(height: 10),
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   ListTile(

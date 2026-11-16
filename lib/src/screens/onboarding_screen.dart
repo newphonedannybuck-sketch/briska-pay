@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import '../pay_schedule.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -115,7 +116,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
                 child: Column(

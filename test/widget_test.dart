@@ -1211,71 +1211,61 @@ void main() {
           final cell = find.byKey(ValueKey('calendar-day-$day'));
           expect(cell, findsOneWidget);
           final size = tester.getSize(cell);
-          expect(size.width, greaterThanOrEqualTo(48));
+          expect(size.width, greaterThanOrEqualTo(32));
           expect(size.height, greaterThanOrEqualTo(48));
         }
 
         final horizontal = find.byKey(
           const ValueKey('calendar-horizontal-scroll'),
         );
-        final scrollable = find.descendant(
-          of: horizontal,
-          matching: find.byType(Scrollable),
+        expect(
+          tester.getSize(grid).width,
+          lessThanOrEqualTo(tester.getSize(horizontal).width),
         );
-        final position = tester
-            .state<ScrollableState>(scrollable.first)
-            .position;
-        final availableWidth = tester.getSize(horizontal).width;
-        if (availableWidth < tester.getSize(grid).width) {
-          expect(position.maxScrollExtent, greaterThan(0));
-          position.jumpTo(position.maxScrollExtent);
-          await tester.pump();
-          expect(position.pixels, position.maxScrollExtent);
-          expect(
-            tester.getBottomRight(grid).dx,
-            lessThanOrEqualTo(tester.getTopRight(horizontal).dx + 0.01),
-          );
-          position.jumpTo(0);
-          await tester.pump();
-          expect(position.pixels, 0);
-          expect(
-            tester.getTopLeft(grid).dx,
-            greaterThanOrEqualTo(tester.getTopLeft(horizontal).dx - 0.01),
-          );
-        }
+        expect(tester.getTopLeft(grid).dx, greaterThanOrEqualTo(0));
+        expect(
+          tester.getTopRight(grid).dx,
+          lessThanOrEqualTo(scenario.size.width),
+        );
       });
     }
   });
 
-  testWidgets('Calendar narrow scrolling preserves date selection', (
-    tester,
-  ) async {
-    await pumpResponsiveApp(tester, size: const Size(320, 568));
-    await tester.tap(find.text('Entries'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Calendar narrow layout keeps all weekdays visible and preserves selection',
+    (tester) async {
+      await pumpResponsiveApp(tester, size: const Size(320, 568));
+      await tester.tap(find.text('Entries'));
+      await tester.pumpAndSettle();
 
-    final horizontal = find.byKey(const ValueKey('calendar-horizontal-scroll'));
-    final weekdayRow = find.byKey(const ValueKey('calendar-weekday-row'));
-    await tester.ensureVisible(weekdayRow);
-    await tester.pumpAndSettle();
-    await tester.dragFrom(
-      Offset(tester.getCenter(horizontal).dx, tester.getCenter(weekdayRow).dy),
-      const Offset(-500, 0),
-    );
-    await tester.pumpAndSettle();
-    final lastDay = DateTime(
-      DateTime.now().year,
-      DateTime.now().month + 1,
-      0,
-    ).day;
-    final lastDayCell = find.byKey(ValueKey('calendar-day-$lastDay'));
-    await tester.ensureVisible(lastDayCell);
-    await tester.pumpAndSettle();
-    await tester.tap(lastDayCell);
-    await tester.pumpAndSettle();
-    expect(find.text('Nothing recorded yet'), findsOneWidget);
-    expect(find.text('Add Day'), findsWidgets);
-  });
+      final horizontal = find.byKey(
+        const ValueKey('calendar-horizontal-scroll'),
+      );
+      final weekdayRow = find.byKey(const ValueKey('calendar-weekday-row'));
+      await tester.ensureVisible(weekdayRow);
+      await tester.pumpAndSettle();
+      await tester.dragFrom(
+        Offset(
+          tester.getCenter(horizontal).dx,
+          tester.getCenter(weekdayRow).dy,
+        ),
+        const Offset(-500, 0),
+      );
+      await tester.pumpAndSettle();
+      final lastDay = DateTime(
+        DateTime.now().year,
+        DateTime.now().month + 1,
+        0,
+      ).day;
+      final lastDayCell = find.byKey(ValueKey('calendar-day-$lastDay'));
+      await tester.ensureVisible(lastDayCell);
+      await tester.pumpAndSettle();
+      await tester.tap(lastDayCell);
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing recorded yet'), findsOneWidget);
+      expect(find.text('Add Day'), findsWidgets);
+    },
+  );
 
   testWidgets('Entries empty states use visible calendar guidance', (
     tester,

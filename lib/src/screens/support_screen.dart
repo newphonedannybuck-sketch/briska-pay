@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../design_system/briska_spacing.dart';
@@ -55,7 +56,8 @@ class _SupportScreenState extends State<SupportScreen> {
                 const Text('Developer: Berkzerker'),
                 const Text('Support email: $briskaSupportEmail'),
                 const SizedBox(height: 16),
-                Card(
+                BriskaCard(
+                  padding: EdgeInsets.zero,
                   child: Padding(
                     padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
                     child: SelectableText(

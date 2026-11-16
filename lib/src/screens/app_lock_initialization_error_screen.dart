@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import '../widgets/shared_ui.dart';
 
@@ -22,7 +23,8 @@ class AppLockInitializationErrorScreen extends StatelessWidget {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
-                  child: Card(
+                  child: BriskaCard(
+                    padding: EdgeInsets.zero,
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(

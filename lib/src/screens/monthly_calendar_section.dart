@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import '../../design_system/briska_colors.dart';
 import '../../design_system/briska_radius.dart';
@@ -79,73 +80,81 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
         final compact = constraints.maxWidth < 360;
         final padding = compact ? 12.0 : 18.0;
         final gridGap = compact ? 3.0 : 5.0;
-        const minimumDateCellExtent = 48.0;
-        final minimumCalendarWidth =
-            (minimumDateCellExtent * 7) + (gridGap * 6);
-        final availableCalendarWidth = constraints.maxWidth - (padding * 2);
-        final calendarWidth = availableCalendarWidth > minimumCalendarWidth
-            ? availableCalendarWidth
-            : minimumCalendarWidth;
-        return Card(
+        final calendarWidth = constraints.maxWidth - (padding * 2);
+        final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        return BriskaCard(
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: EdgeInsets.all(padding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Flex(
+                  direction: largeText || constraints.maxWidth < 330
+                      ? Axis.vertical
+                      : Axis.horizontal,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            formatMonthYear(_month),
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${byDay.length} recorded ${byDay.length == 1 ? 'day' : 'days'}',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                    if (largeText || constraints.maxWidth < 330)
+                      Text(
+                        formatMonthYear(_month),
+                        style: Theme.of(context).textTheme.titleLarge,
+                      )
+                    else
+                      Expanded(
+                        child: Text(
+                          formatMonthYear(_month),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                       ),
-                    ),
-                    IconButton.filledTonal(
-                      tooltip: 'Previous month',
-                      onPressed: () => _moveMonth(-1),
-                      icon: const Icon(Icons.chevron_left_rounded),
-                    ),
-                    const SizedBox(width: 6),
-                    IconButton.filledTonal(
-                      tooltip: 'Next month',
-                      onPressed: () => _moveMonth(1),
-                      icon: const Icon(Icons.chevron_right_rounded),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton.filledTonal(
+                          tooltip: 'Previous month',
+                          onPressed: () => _moveMonth(-1),
+                          icon: const Icon(Icons.chevron_left_rounded),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton.filledTonal(
+                          tooltip: 'Next month',
+                          onPressed: () => _moveMonth(1),
+                          icon: const Icon(Icons.chevron_right_rounded),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                Text(
+                  '${byDay.length} recorded ${byDay.length == 1 ? 'day' : 'days'}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 SizedBox(height: compact ? 10 : 14),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Expanded(
+                    SizedBox(
+                      width: largeText
+                          ? calendarWidth
+                          : (calendarWidth * .28).floorToDouble(),
                       child: _CalendarMetric(
                         label: 'Hours',
                         value: formatHoursLabel(summary.totalHours),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
+                    SizedBox(
+                      width: largeText
+                          ? calendarWidth
+                          : calendarWidth -
+                                (calendarWidth * .28).floorToDouble() -
+                                8,
                       child: _CalendarMetric(
                         label: 'Estimated gross pay',
                         value: formatMoney(summary.totalExpectedPay),
                       ),
                     ),
-                    const SizedBox(width: 4),
                     TextButton(
                       onPressed: _showCurrentMonth,
                       child: const Text('Today'),
@@ -153,18 +162,8 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
                   ],
                 ),
                 SizedBox(height: compact ? 10 : 14),
-                if (availableCalendarWidth < minimumCalendarWidth) ...[
-                  Text(
-                    'Swipe calendar to see all dates',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                SingleChildScrollView(
+                SizedBox(
                   key: const ValueKey('calendar-horizontal-scroll'),
-                  scrollDirection: Axis.horizontal,
                   child: SizedBox(
                     width: calendarWidth,
                     child: Column(
@@ -198,6 +197,7 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 7,
+                                mainAxisExtent: largeText ? 70 : 54,
                                 mainAxisSpacing: gridGap,
                                 crossAxisSpacing: gridGap,
                               ),
@@ -218,6 +218,12 @@ class _MonthlyCalendarSectionState extends State<MonthlyCalendarSection> {
                               entries: entries,
                               settings: widget.settings,
                               compact: compact,
+                              periodBoundary:
+                                  _isSameDate(currentPayPeriod.start, date)
+                                  ? -1
+                                  : _isSameDate(currentPayPeriod.end, date)
+                                  ? 1
+                                  : 0,
                               inCurrentPayPeriod: currentPayPeriod.contains(
                                 date,
                               ),
@@ -324,11 +330,14 @@ class _CalendarMetric extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 1),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -483,6 +492,7 @@ class _CalendarEntrySummary extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: 16,
@@ -501,8 +511,6 @@ class _CalendarEntrySummary extends StatelessWidget {
                 children: [
                   Text(
                     entryTitle(entry),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   Text(
@@ -514,14 +522,18 @@ class _CalendarEntrySummary extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      formatMoney(entry.totalPay),
+                      maxLines: 1,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ],
               ),
             ),
-            Text(
-              formatMoney(entry.totalPay),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 4),
             Icon(
               Icons.chevron_right_rounded,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -539,6 +551,7 @@ class _CalendarDayTile extends StatelessWidget {
     required this.entries,
     required this.settings,
     required this.compact,
+    required this.periodBoundary,
     required this.inCurrentPayPeriod,
     required this.selected,
     required this.onTap,
@@ -549,6 +562,7 @@ class _CalendarDayTile extends StatelessWidget {
   final List<WorkEntry> entries;
   final AppSettings settings;
   final bool compact;
+  final int periodBoundary;
   final bool inCurrentPayPeriod;
   final bool selected;
   final VoidCallback onTap;
@@ -577,11 +591,15 @@ class _CalendarDayTile extends StatelessWidget {
               )
               .join(', ');
     final primaryStatus = statuses.first;
-    final statusColor = primaryStatus.color;
+    final statusColor = primaryStatus.resolved(context);
     return Semantics(
       button: true,
       label:
-          '${date.day} ${fullMonthNames[date.month - 1]}, $label${isToday ? ', today' : ''}${selected ? ', selected' : ''}${inCurrentPayPeriod ? ', current pay period' : ''}',
+          '${date.day} ${fullMonthNames[date.month - 1]}, $label${isToday ? ', today' : ''}${selected ? ', selected' : ''}${inCurrentPayPeriod ? ', current pay period' : ''}${periodBoundary == -1
+              ? ', pay period starts'
+              : periodBoundary == 1
+              ? ', pay period ends'
+              : ''}',
       child: InkWell(
         borderRadius: BorderRadius.circular(BriskaRadii.md),
         onTap: onTap,
@@ -606,7 +624,7 @@ class _CalendarDayTile extends StatelessWidget {
                   : isToday || inCurrentPayPeriod
                   ? colorScheme.primary.withValues(alpha: isToday ? .55 : .2)
                   : Theme.of(context).dividerColor.withValues(alpha: .72),
-              width: selected ? 1.4 : 1,
+              width: selected || periodBoundary != 0 ? 2 : 1,
             ),
           ),
           child: Column(
@@ -620,18 +638,26 @@ class _CalendarDayTile extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         date.day.toString(),
-                        textScaler: TextScaler.noScaling,
                         style: TextStyle(
                           color: isToday || selected
                               ? colorScheme.primary
                               : colorScheme.onSurface,
-                          fontSize: compact ? 10.5 : 11.5,
+                          fontSize: compact ? 15 : 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ),
-                  if (isToday && !compact)
+                  if (periodBoundary != 0 &&
+                      MediaQuery.textScalerOf(context).scale(1) < 1.5)
+                    Icon(
+                      periodBoundary == -1
+                          ? Icons.first_page_rounded
+                          : Icons.last_page_rounded,
+                      size: 10,
+                      color: colorScheme.primary,
+                    )
+                  else if (isToday)
                     Container(
                       width: compact ? 4 : 5,
                       height: compact ? 4 : 5,
@@ -644,17 +670,20 @@ class _CalendarDayTile extends StatelessWidget {
               ),
               const Spacer(),
               if (entries.isNotEmpty)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    for (final status in statuses.take(3))
-                      _CalendarStatusMarker(
-                        key: ValueKey(
-                          'calendar-cell-marker-${status.name}-${date.day}',
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      for (final status in statuses.take(3))
+                        _CalendarStatusMarker(
+                          key: ValueKey(
+                            'calendar-cell-marker-${status.name}-${date.day}',
+                          ),
+                          status: status,
                         ),
-                        status: status,
-                      ),
-                  ],
+                    ],
+                  ),
                 )
               else if (inCurrentPayPeriod)
                 Align(
@@ -682,13 +711,25 @@ enum _CalendarStatus {
   holiday('Holiday', BriskaColors.calendarHoliday),
   sick('Sick Day', BriskaColors.calendarSickDay),
   unpaid('Unpaid day off', BriskaColors.warning),
-  bankHoliday('Bank Holiday', BriskaColors.primary),
+  bankHoliday('Bank Holiday', BriskaColors.warning),
   empty('No entry', BriskaColors.calendarEmpty);
 
   const _CalendarStatus(this.label, this.color);
 
   final String label;
   final Color color;
+
+  Color resolved(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return switch (this) {
+      holiday => dark ? const Color(0xFFCFB1FF) : color,
+      bankHoliday => dark ? const Color(0xFFFFD28A) : color,
+      sick => dark ? const Color(0xFFFFB1CD) : color,
+      home || away => Theme.of(context).colorScheme.primary,
+      unpaid => Theme.of(context).colorScheme.onSurfaceVariant,
+      _ => color,
+    };
+  }
 
   static _CalendarStatus fromEntry(WorkEntry entry) {
     return switch (entry.entryType) {
@@ -713,33 +754,36 @@ class _CalendarStatusMarker extends StatelessWidget {
         width: 12,
         height: 4,
         decoration: BoxDecoration(
-          color: status.color,
+          color: status.resolved(context),
           borderRadius: BorderRadius.circular(99),
         ),
       ),
       _CalendarStatus.away => Transform.rotate(
         angle: 0.7853981633974483,
-        child: Container(width: 8, height: 8, color: status.color),
+        child: Container(width: 8, height: 8, color: status.resolved(context)),
       ),
       _CalendarStatus.holiday => Container(
         width: 8,
         height: 8,
-        decoration: BoxDecoration(color: status.color, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: status.resolved(context),
+          shape: BoxShape.circle,
+        ),
       ),
       _CalendarStatus.sick => Icon(
         Icons.sick_outlined,
         size: 12,
-        color: status.color,
+        color: status.resolved(context),
       ),
       _CalendarStatus.unpaid => Container(
         width: 8,
         height: 8,
-        color: status.color,
+        color: status.resolved(context),
       ),
       _CalendarStatus.bankHoliday => Icon(
         Icons.account_balance_rounded,
         size: 12,
-        color: status.color,
+        color: status.resolved(context),
       ),
       _CalendarStatus.empty => const SizedBox.shrink(),
     };
@@ -799,8 +843,7 @@ class _CalendarLegend extends StatelessWidget {
         Flexible(
           child: Text(
             label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,

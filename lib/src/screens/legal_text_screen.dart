@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/shared_ui.dart';
@@ -21,7 +22,8 @@ class LegalTextScreen extends StatelessWidget {
           future: rootBundle.loadString(assetPath),
           builder: (context, snapshot) {
             final text = snapshot.data ?? 'Loading...';
-            return Card(
+            return BriskaCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: SelectableText(

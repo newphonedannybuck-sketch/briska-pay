@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import '../../design_system/briska_spacing.dart';
 import '../local_storage.dart';
@@ -115,7 +116,8 @@ class _BetaChecklistScreenState extends State<BetaChecklistScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
                 child: Column(
@@ -159,7 +161,8 @@ class _BetaChecklistScreenState extends State<BetaChecklistScreen> {
             ),
             const SizedBox(height: 12),
             ..._items.map(
-              (item) => Card(
+              (item) => BriskaCard(
+                padding: EdgeInsets.zero,
                 child: CheckboxListTile(
                   value: _completed.contains(item),
                   onChanged: _loading

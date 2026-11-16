@@ -1,3 +1,5 @@
+import '../../design_system/briska_surfaces.dart';
+import '../home_dashboard_summary.dart';
 import 'package:flutter/material.dart';
 import '../../design_system/briska_colors.dart';
 import '../../design_system/briska_cards.dart';
@@ -39,6 +41,24 @@ class _ProfessionalReportsScreenState extends State<ProfessionalReportsScreen> {
         ? const <WorkEntry>[]
         : widget.entries.where((entry) => range.contains(entry.date)).toList();
     final summary = WorkCalculator.summarize(selectedEntries);
+    final holidays = HomeTimeOffSummary(
+      selectedEntries.where((entry) => entry.type == EntryType.holiday),
+    );
+    final bankHolidays = HomeTimeOffSummary(
+      selectedEntries.where((entry) => entry.type == EntryType.bankHoliday),
+    );
+    final paidBankHolidays = HomeTimeOffSummary(
+      selectedEntries.where(
+        (entry) =>
+            entry.type == EntryType.bankHoliday && entry.isPaidBankHoliday,
+      ),
+    );
+    final unpaidBankHolidays = HomeTimeOffSummary(
+      selectedEntries.where(
+        (entry) =>
+            entry.type == EntryType.bankHoliday && !entry.isPaidBankHoliday,
+      ),
+    );
     final workedEntries = selectedEntries
         .where((entry) => entry.entryType == 'WorkDay')
         .toList();
@@ -72,6 +92,11 @@ class _ProfessionalReportsScreenState extends State<ProfessionalReportsScreen> {
           SizedBox(
             width: double.infinity,
             child: SegmentedButton<ExportDateRangeType>(
+              direction:
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.3 ||
+                      MediaQuery.sizeOf(context).width < 360
+                  ? Axis.vertical
+                  : Axis.horizontal,
               segments: const [
                 ButtonSegment(
                   value: ExportDateRangeType.currentMonth,
@@ -130,7 +155,8 @@ class _ProfessionalReportsScreenState extends State<ProfessionalReportsScreen> {
             const SizedBox(height: 20),
             const SectionHeading(title: 'Work pattern'),
             const SizedBox(height: 10),
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
@@ -144,14 +170,25 @@ class _ProfessionalReportsScreenState extends State<ProfessionalReportsScreen> {
                     ReportRow(
                       icon: Icons.beach_access_outlined,
                       label: 'Holidays',
-                      value: summary.holidayDays.toString(),
+                      value:
+                          '${holidays.days} ${holidays.days == 1 ? 'day' : 'days'} · ${holidays.hasRecordedHours
+                              ? '${formatHours(holidays.recordedHours)} recorded hours'
+                              : holidays.days == 0
+                              ? 'No days recorded'
+                              : 'Hours not entered'}',
+                      tint: BriskaSurfaces.dayType(context, 'Holiday'),
                     ),
                     Divider(height: 26, color: Theme.of(context).dividerColor),
                     ReportRow(
                       icon: Icons.account_balance_rounded,
                       label: 'Bank Holidays (paid / unpaid)',
                       value:
-                          '${summary.bankHolidayDays} (${summary.paidBankHolidayDays} / ${summary.unpaidBankHolidayDays})',
+                          '${bankHolidays.days} (${paidBankHolidays.days} / ${unpaidBankHolidays.days}) · ${bankHolidays.hasRecordedHours
+                              ? '${formatHours(bankHolidays.recordedHours)} recorded hours'
+                              : bankHolidays.days == 0
+                              ? 'No days recorded'
+                              : 'Hours not entered'}',
+                      tint: BriskaSurfaces.dayType(context, 'bankHoliday'),
                     ),
                     Divider(height: 26, color: Theme.of(context).dividerColor),
                     ReportRow(
@@ -195,17 +232,14 @@ class _ReportsSummaryPanel extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: BriskaColors.hero,
-        borderRadius: BorderRadius.circular(22),
-      ),
+      decoration: BriskaSurfaces.panel(context, prominent: true),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'ESTIMATED GROSS PAY',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: .72),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
@@ -218,35 +252,48 @@ class _ReportsSummaryPanel extends StatelessWidget {
             child: BriskaAnimatedText(
               formatMoney(earnings),
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _ReportsHeroMetric(
-                  label: 'Hours',
-                  value: formatHoursLabel(hours),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ReportsHeroMetric(
-                  label: workDays == 1 ? 'Day recorded' : 'Days recorded',
-                  value: workDays.toString(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ReportsHeroMetric(
-                  label: 'Daily average',
-                  value: formatMoney(averageDailyPay),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.3 ||
+                  constraints.maxWidth < 300;
+              final width = stacked
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 16) / 3;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SizedBox(
+                    width: width,
+                    child: _ReportsHeroMetric(
+                      label: 'Hours',
+                      value: formatHoursLabel(hours),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: _ReportsHeroMetric(
+                      label: workDays == 1 ? 'Day recorded' : 'Days recorded',
+                      value: workDays.toString(),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: _ReportsHeroMetric(
+                      label: 'Daily average',
+                      value: formatMoney(averageDailyPay),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -262,11 +309,11 @@ class _ReportsHeroMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const onPrimary = Colors.white;
+    final onPrimary = Theme.of(context).colorScheme.onSurface;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: onPrimary.withValues(alpha: .12),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: .07),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -306,7 +353,8 @@ class _ReportBreakdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return BriskaCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -356,25 +404,12 @@ class _ReportBreakdownRow extends StatelessWidget {
     final progress = total <= 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
     return Column(
       children: [
-        Row(
-          children: [
-            Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            Text(
-              formatMoney(value),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
+        ReportRow(
+          icon: Icons.circle,
+          label: label,
+          value: formatMoney(value),
+          tint: color,
+          monetary: true,
         ),
         const SizedBox(height: 8),
         ClipRRect(

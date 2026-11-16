@@ -1,3 +1,4 @@
+import '../../../design_system/briska_cards.dart';
 import '../../widgets/detail_text.dart';
 import 'package:flutter/material.dart';
 import '../../models.dart';
@@ -45,7 +46,8 @@ class ExportedFileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return BriskaCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -78,8 +80,7 @@ class ExportedFileCard extends StatelessWidget {
                     children: [
                       Text(
                         record.fileName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
@@ -222,7 +223,8 @@ class CompactEmptyExportLibrary extends StatelessWidget {
   const CompactEmptyExportLibrary({super.key});
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => BriskaCard(
+    padding: EdgeInsets.zero,
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -272,7 +274,8 @@ class RecentExportCard extends StatelessWidget {
         : record.fileSize! >= 1024 * 1024
         ? '${(record.fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB'
         : '${(record.fileSize! / 1024).toStringAsFixed(0)} KB';
-    return Card(
+    return BriskaCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
         child: Row(

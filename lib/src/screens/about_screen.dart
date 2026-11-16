@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../design_system/briska_spacing.dart';
@@ -37,7 +38,8 @@ class AboutBriskaScreen extends StatelessWidget {
                 ),
                 const Center(child: Text('Work. Track. Get Paid.')),
                 const SizedBox(height: 24),
-                Card(
+                BriskaCard(
+                  padding: EdgeInsets.zero,
                   child: Padding(
                     padding: const EdgeInsets.all(BriskaSpacing.cardPadding),
                     child: Column(
@@ -175,7 +177,8 @@ class _AboutAction extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => BriskaCard(
+    padding: EdgeInsets.zero,
     child: ListTile(
       leading: Icon(icon),
       title: Text(title),

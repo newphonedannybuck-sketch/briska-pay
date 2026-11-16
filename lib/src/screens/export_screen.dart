@@ -310,34 +310,41 @@ class _ExportScreenState extends State<ExportScreen> {
                 ),
                 if (_rangeType == ExportDateRangeType.custom) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _pickCustomDate(true),
-                          icon: const Icon(Icons.calendar_today_outlined),
-                          label: Text(
-                            _customStart == null
-                                ? 'From date'
-                                : 'From date\n${formatFullDate(_customStart!)}',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _pickCustomDate(false),
-                          icon: const Icon(Icons.event_outlined),
-                          label: Text(
-                            _customEnd == null
-                                ? 'To date'
-                                : 'To date\n${formatFullDate(_customEnd!)}',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked =
+                          MediaQuery.textScalerOf(context).scale(1) >= 1.3;
+                      return Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (final start in [true, false])
+                            SizedBox(
+                              width: stacked
+                                  ? constraints.maxWidth
+                                  : (constraints.maxWidth - 10) / 2,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _pickCustomDate(start),
+                                icon: Icon(
+                                  start
+                                      ? Icons.calendar_today_outlined
+                                      : Icons.event_outlined,
+                                ),
+                                label: Text(
+                                  start
+                                      ? (_customStart == null
+                                            ? 'From date'
+                                            : 'From date\n${formatFullDate(_customStart!)}')
+                                      : (_customEnd == null
+                                            ? 'To date'
+                                            : 'To date\n${formatFullDate(_customEnd!)}'),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ],
                 if (range != null) ...[
@@ -407,7 +414,8 @@ class _ExportScreenState extends State<ExportScreen> {
             ),
           ),
           if (_showMoreOptions)
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
                 child: Column(
@@ -762,7 +770,8 @@ class _ExportSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
-    child: Card(
+    child: BriskaCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -834,7 +843,8 @@ class _NoWorkRecords extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 14),
-    child: Card(
+    child: BriskaCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(22),
         child: Column(
@@ -884,7 +894,7 @@ class ExportCreatedDialog extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(record.fileName, maxLines: 3, overflow: TextOverflow.ellipsis),
+        Text(record.fileName),
         const SizedBox(height: 8),
         Text(formatFileSize(record.fileSize)),
       ],

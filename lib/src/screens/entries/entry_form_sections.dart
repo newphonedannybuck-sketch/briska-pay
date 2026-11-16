@@ -1,3 +1,4 @@
+import '../../../design_system/briska_surfaces.dart';
 import 'package:flutter/material.dart';
 import '../../models.dart';
 import '../../presentation_format.dart';
@@ -39,7 +40,20 @@ class EntryDayTypeSelector extends StatelessWidget {
             showCheckmark: false,
             key: ValueKey('day-type-${option.$1.name}'),
             selected: selected,
-            avatar: Icon(option.$3, size: 18),
+            selectedColor: BriskaSurfaces.dayType(
+              context,
+              option.$1.storageValue,
+            ).withValues(alpha: .17),
+            side: BorderSide(
+              color: selected
+                  ? BriskaSurfaces.dayType(context, option.$1.storageValue)
+                  : Theme.of(context).colorScheme.outlineVariant,
+            ),
+            avatar: Icon(
+              option.$3,
+              size: 18,
+              color: BriskaSurfaces.dayType(context, option.$1.storageValue),
+            ),
             label: Text(option.$2),
             onSelected: (_) => onSelected(option.$1.storageValue),
           );
@@ -157,6 +171,9 @@ class WorkPaySection extends StatelessWidget {
       SizedBox(
         width: double.infinity,
         child: SegmentedButton<String>(
+          direction: MediaQuery.textScalerOf(context).scale(1) >= 1.5
+              ? Axis.vertical
+              : Axis.horizontal,
           segments: [
             ButtonSegment(
               value: 'primary',

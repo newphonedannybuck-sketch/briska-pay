@@ -1,3 +1,5 @@
+import '../../design_system/briska_surfaces.dart';
+import '../../design_system/briska_cards.dart';
 import 'detail_text.dart';
 import 'package:flutter/material.dart';
 import '../models.dart';
@@ -22,7 +24,9 @@ class WorkEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return BriskaCard(
+      tint: BriskaSurfaces.dayType(context, entry.entryType),
+      padding: EdgeInsets.zero,
       key: ValueKey('entry-card-${entry.id}'),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -35,9 +39,10 @@ class WorkEntryCard extends StatelessWidget {
                   width: 58,
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
-                    color: Theme.of(
+                    color: BriskaSurfaces.dayType(
                       context,
-                    ).colorScheme.primary.withValues(alpha: .09),
+                      entry.entryType,
+                    ).withValues(alpha: .12),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -95,11 +100,17 @@ class WorkEntryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Text(
-                    formatMoney(entry.totalPay),
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      formatMoney(entry.totalPay),
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                     ),
                   ),
                 ),
@@ -263,8 +274,7 @@ class _StatusPill extends StatelessWidget {
                   Flexible(
                     child: Text(
                       label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+
                       style: TextStyle(
                         color: colorScheme.onSurface,
                         fontSize: 12,

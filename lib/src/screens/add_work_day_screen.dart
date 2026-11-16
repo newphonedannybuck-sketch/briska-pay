@@ -1,3 +1,4 @@
+import '../../design_system/briska_cards.dart';
 import 'entries/entry_widgets.dart';
 import 'entries/entry_form_sections.dart';
 import 'entries/site_name_field.dart';
@@ -621,7 +622,8 @@ class _AddWorkDayScreenState extends State<AddWorkDayScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Card(
+            BriskaCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
